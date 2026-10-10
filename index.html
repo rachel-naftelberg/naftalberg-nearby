@@ -91,6 +91,13 @@
       <div class="location-controls-bar">
         <div class="hotspot-select-wrap">
           <select id="hotspotSelector" class="hotspot-select" aria-label="בחירת נקודת ציון לבדיקה">
+            <optgroup label="ירושלים, ישראל">
+              <option value="jlm-kotel">🕍 הכותל המערבי והעיר העתיקה</option>
+            </optgroup>
+            <optgroup label="תל אביב, ישראל">
+              <option value="tlv-beach">🌊 טיילת וחוף גורדון</option>
+              <option value="tlv-carmel">🍉 שוק הכרמל ונחלת בנימין</option>
+            </optgroup>
             <optgroup label="רומא, איטליה">
               <option value="rome-colosseum" selected>🏟️ הקולוסיאום (Colosseum)</option>
               <option value="rome-trevi">⛲ מזרקת טרווי (Trevi Fountain)</option>
@@ -100,9 +107,6 @@
             </optgroup>
             <optgroup label="ברצלונה, ספרד">
               <option value="bcn-sagrada">🎨 סגרדה פמיליה (Sagrada Família)</option>
-            </optgroup>
-            <optgroup label="תל אביב, ישראל">
-              <option value="tlv-beach">🌊 טיילת וחוף גורדון</option>
             </optgroup>
           </select>
         </div>
@@ -155,6 +159,17 @@
         <span>✨ איפה אני נמצא עכשיו?</span>
         <span>(פרטים, שעות, מופעים ומחירים)</span>
       </button>
+    </section>
+
+    <!-- סרגל בחירת אטרקציה בסביבה - מאפשר לבחור היכן אתה נמצא אם יש כמה אטרקציות -->
+    <section class="nearby-attractions-picker-section" id="nearbyAttractionsPickerSection">
+      <div class="picker-header">
+        <h4><span>🎯</span> <span>אטרקציות בסביבתך - היכן את/ה נמצא/ת כעת?</span></h4>
+        <span class="hint">לחצו על "אני כאן!" כדי לבחור את האטרקציה המדויקת</span>
+      </div>
+      <div class="picker-cards-scroll" id="nearbyAttractionsPickerContainer">
+        <!-- ממולא דינמית דרך app.js -->
+      </div>
     </section>
 
     <!-- ווידג'ט מעקב מרחק מהמלון (ברגל, תחב"צ, רכב) -->
@@ -290,6 +305,9 @@
       </div>
 
       <div class="modal-body">
+        <!-- סרגל החלפת אטרקציה בתוך המודל -->
+        <div id="attrModalSwitcher" style="display: none; margin-bottom: 8px;"></div>
+
         <!-- שעון המכשיר -->
         <div class="device-time-bar" id="attrDeviceClock">
           <span>📱 שעון המכשיר: <strong>שבת, 16:58</strong></span>
@@ -396,7 +414,10 @@
 
         <div class="form-group">
           <label for="newTripHotelAddress">כתובת המלון</label>
-          <input type="text" id="newTripHotelAddress" class="form-input" placeholder="רחוב, מספר עיר">
+          <input type="text" id="newTripHotelAddress" class="form-input" placeholder="רחוב, מספר, עיר (ייקבע אוטומטית במפה)">
+          <button type="button" class="btn-use-current-gps" id="btnUseGpsForNewHotel">
+            <span>📍</span> <span>השתמש במיקום ה-GPS הנוכחי שלי עבור המלון</span>
+          </button>
         </div>
 
         <div class="form-row-2">
@@ -409,6 +430,7 @@
               <option value="🌊">🌊 חוף ים</option>
               <option value="🎨">🎨 אומנות ומוזיאונים</option>
               <option value="🍕">🍕 קולינריה ושווקים</option>
+              <option value="🕍">🕍 ירושלים ומורשת</option>
             </select>
           </div>
           <div class="form-group">
@@ -419,7 +441,7 @@
 
         <div class="form-actions">
           <button type="button" class="btn-nav" onclick="window.app.closeFolderModal()">ביטול</button>
-          <button type="submit" class="btn-nav primary">שמור תיקייה והתחל חקירה</button>
+          <button type="submit" class="btn-nav primary" id="btnSubmitNewFolder">💾 שמור תיקייה והתחל חקירה</button>
         </div>
       </form>
     </div>
@@ -445,10 +467,13 @@
 
         <div class="form-group">
           <label for="editHotelAddress">כתובת המלון</label>
-          <input type="text" id="editHotelAddress" class="form-input">
+          <input type="text" id="editHotelAddress" class="form-input" placeholder="רחוב, מספר, עיר">
+          <button type="button" class="btn-use-current-gps" id="btnUseGpsForEditHotel">
+            <span>📍</span> <span>השתמש במיקום ה-GPS הנוכחי שלי עבור המלון</span>
+          </button>
         </div>
 
-        <div class="form-row-2">
+        <div class="form-row-2" style="display: none;">
           <div class="form-group">
             <label for="editHotelLat">קו רוחב (Latitude)</label>
             <input type="number" step="any" id="editHotelLat" class="form-input">

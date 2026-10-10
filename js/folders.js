@@ -66,19 +66,25 @@ class FoldersManager {
 
   createFolder(folderData) {
     const id = 'folder-' + Date.now();
+    const fallbackLat = window.locationService ? window.locationService.currentLat : 32.0853;
+    const fallbackLng = window.locationService ? window.locationService.currentLng : 34.7818;
+
+    const lat = !isNaN(parseFloat(folderData.hotelLat)) ? parseFloat(folderData.hotelLat) : fallbackLat;
+    const lng = !isNaN(parseFloat(folderData.hotelLng)) ? parseFloat(folderData.hotelLng) : fallbackLng;
+
     const newFolder = {
       id,
       name: folderData.name || 'טיול חדש',
       city: folderData.city || 'יעד לא מוגדר',
       hotelName: folderData.hotelName || 'לא הוגדר מלון',
       hotelAddress: folderData.hotelAddress || '',
-      hotelLat: parseFloat(folderData.hotelLat) || 41.9018,
-      hotelLng: parseFloat(folderData.hotelLng) || 12.4938,
+      hotelLat: lat,
+      hotelLng: lng,
       hotelNotes: folderData.hotelNotes || '',
       coverGradient: folderData.coverGradient || 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
       icon: folderData.icon || '✈️',
-      centerLat: parseFloat(folderData.hotelLat) || 41.9018,
-      centerLng: parseFloat(folderData.hotelLng) || 12.4938,
+      centerLat: lat,
+      centerLng: lng,
       currentHotspotId: folderData.currentHotspotId || null,
       createdAt: new Date().toISOString()
     };

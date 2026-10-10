@@ -1,6 +1,7 @@
 // ==========================================================================
 // מודל "איפה אני נמצא" (Deep-Dive Attraction Modal & Live Schedule)
-// סנכרון עם תאריך ושעה של המכשיר, שעות פתיחה, מופעים, סיפורים ומחירים
+// סנכרון עם תאריך ושעה של המכשיר, בחירת אטרקציה מתוך מספר אפשרויות,
+// שעות פתיחה, מופעים, סיפורים ומחירים
 // ==========================================================================
 
 class AttractionModalManager {
@@ -14,6 +15,9 @@ class AttractionModalManager {
       'יום שישי',
       'יום שבת'
     ];
+    this.selectedSpot = null;
+    this.dynamicSpotCache = null;
+    this.cachedCoordsKey = '';
   }
 
   // קריאת תאריך ושעה מהמכשיר (iPhone / Browser)
@@ -42,7 +46,7 @@ class AttractionModalManager {
     if (!schedule) {
       return {
         isOpen: true,
-        statusText: 'פתוח לקהל',
+        statusText: '🟢 פתוח לקהל',
         badgeClass: 'status-open',
         subText: 'אתר פתוח תחת כיפת השמיים'
       };
@@ -112,8 +116,103 @@ class AttractionModalManager {
     }
   }
 
+  // איסוף כל האטרקציות בסביבת המשתמש (למיון ובחירה)
+  async getNearbyAttractionsList(currentLat, currentLng) {
+    const hotspots = Object.values(window.NaftalbergData.HOTSPOTS_DATA);
+    let list = [];
+
+    // 1. חישוב מרחק מכל האטרקציות במאגר
+    hotspots.forEach(spot => {
+      const dist = window.hotelDistanceCalculator.calculateHaversineDistance(
+        currentLat,
+        currentLng,
+        spot.lat,
+        spot.lng
+      );
+      list.push({ ...spot, distanceMeters: dist });
+    });
+
+    // מיון לפי מרחק מהמשתמש
+    list.sort((a, b) => a.distanceMeters - b.distanceMeters);
+
+    // 2. אם האטרקציה הקרובה ביותר רחוקה מ-2 ק"מ (למשל המשתמש במיקום GPS אמיתי בארץ או בחו"ל שלא במאגר)
+    if (list.length === 0 || list[0].distanceMeters > 2000) {
+      const key = `${currentLat.toFixed(3)}_${currentLng.toFixed(3)}`;
+      if (this.dynamicSpotCache && this.cachedCoordsKey === key) {
+        list.unshift(this.dynamicSpotCache);
+      } else {
+        try {
+          const revUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${currentLat}&lon=${currentLng}&zoom=18&addressdetails=1`;
+          const resp = await fetch(revUrl, { headers: { 'Accept-Language': 'he,en' } });
+          const data = await resp.json();
+          if (data && data.display_name) {
+            const addr = data.address || {};
+            const placeName = addr.attraction || addr.tourism || addr.museum || addr.historic || 
+                              addr.amenity || addr.leisure || addr.building || addr.road || 'המיקום הנוכחי שלך';
+            const city = addr.city || addr.town || addr.village || addr.suburb || 'בסביבה';
+
+            const dynamicSpot = {
+              id: 'dynamic-spot-current',
+              city: city,
+              name: placeName,
+              subtitle: data.display_name.split(',').slice(0, 3).join(','),
+              lat: currentLat,
+              lng: currentLng,
+              distanceMeters: 0,
+              category: 'attraction',
+              image: 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80',
+              details: `אתה נמצא כרגע בכתובת: ${data.display_name}. האפליקציה זיהתה את המיקום החי שלך ומציעה שירותים, מסעדות, בתי קפה ושירותים ציבוריים בסביבתך.`,
+              interestingStories: [
+                `אתה נמצא ב-${city}, באזור ${addr.neighbourhood || addr.suburb || 'המרכז העירוני'}.`,
+                'האפליקציה מחשבת מרחקים מדויקים וזמני הגעה בזמן אמת לכל מקום בסביבה ומהמלון שלך.'
+              ],
+              guideWhatToDo: [
+                'בדקו את המסעדות ובתי הקפה המומלצים בלשוניות שמתחת.',
+                'השתמשו בכפתור המרחק מהמלון כדי לדעת בכל רגע איך להגיע בקלות חזרה למלון.'
+              ],
+              ticketPrice: {
+                standard: 'כניסה חופשית / לפי האתר המקומי'
+              },
+              schedule: {
+                0: { open: '00:00', close: '23:59', label: 'פתוח 24/7' },
+                1: { open: '00:00', close: '23:59', label: 'פתוח 24/7' },
+                2: { open: '00:00', close: '23:59', label: 'פתוח 24/7' },
+                3: { open: '00:00', close: '23:59', label: 'פתוח 24/7' },
+                4: { open: '00:00', close: '23:59', label: 'פתוח 24/7' },
+                5: { open: '00:00', close: '23:59', label: 'פתוח 24/7' },
+                6: { open: '00:00', close: '23:59', label: 'פתוח 24/7' }
+              },
+              showsAndEvents: [
+                { time: 'היום', title: 'שיטוט וחקירה חופשית באזור', desc: 'האזור מציע מגוון נקודות עניין, חנויות ומסעדות מקומיות.' }
+              ],
+              officialUrl: ''
+            };
+
+            this.dynamicSpotCache = dynamicSpot;
+            this.cachedCoordsKey = key;
+            list.unshift(dynamicSpot);
+          }
+        } catch (e) {
+          console.warn('Reverse geocoding failed:', e);
+        }
+      }
+    }
+
+    return list;
+  }
+
   // איתור האטרקציה הקרובה ביותר למיקום הנוכחי
   findNearestAttraction(currentLat, currentLng) {
+    if (this.selectedSpot) {
+      const dist = window.hotelDistanceCalculator.calculateHaversineDistance(
+        currentLat,
+        currentLng,
+        this.selectedSpot.lat,
+        this.selectedSpot.lng
+      );
+      return { ...this.selectedSpot, distanceMeters: dist };
+    }
+
     const hotspots = Object.values(window.NaftalbergData.HOTSPOTS_DATA);
     if (!hotspots.length) return null;
 
@@ -136,13 +235,45 @@ class AttractionModalManager {
     return nearest;
   }
 
+  // קביעת אטרקציה נבחרת על ידי המשתמש מתוך רשימת האטרקציות באזור
+  selectAttraction(spotId) {
+    let spot = null;
+    if (this.dynamicSpotCache && this.dynamicSpotCache.id === spotId) {
+      spot = this.dynamicSpotCache;
+    } else {
+      spot = window.NaftalbergData.HOTSPOTS_DATA[spotId];
+    }
+
+    if (spot) {
+      this.selectedSpot = spot;
+      const currentLat = window.locationService.currentLat;
+      const currentLng = window.locationService.currentLng;
+      spot.distanceMeters = window.hotelDistanceCalculator.calculateHaversineDistance(
+        currentLat,
+        currentLng,
+        spot.lat,
+        spot.lng
+      );
+
+      // עדכון ה-UI
+      if (window.app) {
+        window.app.updateNearestHeroBanner(currentLat, currentLng);
+        window.app.renderAttractionPicker();
+      }
+
+      if (window.mapService) {
+        window.mapService.flyToAndHighlight(spot.lat, spot.lng, spot.name);
+      }
+    }
+  }
+
   // פתיחת המודל והצגת כל המידע הנדרש
-  openModal(spotData = null) {
+  async openModal(spotData = null) {
     const modal = document.getElementById('attractionModal');
     if (!modal) return;
 
     const loc = window.locationService;
-    const spot = spotData || this.findNearestAttraction(loc.currentLat, loc.currentLng);
+    const spot = spotData || this.selectedSpot || this.findNearestAttraction(loc.currentLat, loc.currentLng);
     if (!spot) {
       alert('לא נמצאה אטרקציה קרובה למיקום הנוכחי.');
       return;
@@ -156,6 +287,32 @@ class AttractionModalManager {
     document.getElementById('attrSubtitle').textContent = spot.subtitle || spot.city;
     document.getElementById('attrImage').src = spot.image || '';
     document.getElementById('attrImage').alt = spot.name;
+
+    // סרגל החלפת אטרקציה בתוך המודל (אם יש עוד אטרקציות בסביבה)
+    const switcherContainer = document.getElementById('attrModalSwitcher');
+    if (switcherContainer) {
+      const nearbyList = await this.getNearbyAttractionsList(loc.currentLat, loc.currentLng);
+      if (nearbyList.length > 1) {
+        let pillsHtml = `
+          <div class="modal-attractions-switcher-bar">
+            <span class="switcher-label">📍 אטרקציות בסביבה:</span>
+            <div class="switcher-pills-list">
+        `;
+        nearbyList.slice(0, 6).forEach(item => {
+          const isSelected = item.id === spot.id;
+          pillsHtml += `
+            <button class="btn-switcher-pill ${isSelected ? 'active' : ''}" onclick="window.attractionModalManager.selectAttractionAndReload('${item.id}')">
+              ${item.name} (${window.hotelDistanceCalculator.formatDistance(item.distanceMeters)})
+            </button>
+          `;
+        });
+        pillsHtml += `</div></div>`;
+        switcherContainer.innerHTML = pillsHtml;
+        switcherContainer.style.display = 'block';
+      } else {
+        switcherContainer.style.display = 'none';
+      }
+    }
 
     // תאריך ושעה של המכשיר
     const clockBadge = document.getElementById('attrDeviceClock');
@@ -268,6 +425,8 @@ class AttractionModalManager {
           if (key === 'audioGuide') label = 'מדריך קולי';
           if (key === 'beachGear') label = 'השכרת ציוד חוף';
           if (key === 'gordonPool') label = 'בריכת שחייה';
+          if (key === 'tunnels') label = 'סיור מנהרות';
+          if (key === 'virtualReality') label = 'מציאות מדומה';
 
           priceHtml += `
             <div class="price-card">
@@ -302,6 +461,11 @@ class AttractionModalManager {
 
     modal.classList.add('active');
     document.body.classList.add('modal-open');
+  }
+
+  selectAttractionAndReload(spotId) {
+    this.selectAttraction(spotId);
+    this.openModal(this.selectedSpot);
   }
 
   closeModal() {

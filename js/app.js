@@ -189,6 +189,61 @@ class App {
       });
     }
 
+    // כפתור שימוש במיקום GPS נוכחי עבור מלון בטופס יצירה
+    const btnUseGpsNew = document.getElementById('btnUseGpsForNewHotel');
+    if (btnUseGpsNew) {
+      btnUseGpsNew.addEventListener('click', async () => {
+        btnUseGpsNew.textContent = '⏳ קורא מיקום GPS...';
+        try {
+          if (navigator.geolocation) {
+            await window.locationService.requestLiveGPS();
+          }
+          const lat = window.locationService.currentLat;
+          const lng = window.locationService.currentLng;
+          try {
+            const rev = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18`, { headers: { 'Accept-Language': 'he,en' } });
+            const d = await rev.json();
+            if (d && d.display_name) {
+              document.getElementById('newTripHotelAddress').value = d.display_name.split(',').slice(0, 3).join(',');
+              if (!document.getElementById('newTripCity').value) {
+                document.getElementById('newTripCity').value = d.address?.city || d.address?.town || d.address?.country || 'ישראל';
+              }
+            }
+          } catch (_) {}
+          btnUseGpsNew.textContent = '✓ נקלט מיקום ה-GPS הנוכחי עבור המלון!';
+        } catch (e) {
+          btnUseGpsNew.textContent = '⚠️ שגיאה בקריאת GPS';
+        }
+      });
+    }
+
+    // כפתור שימוש במיקום GPS נוכחי עבור מלון בטופס עריכה
+    const btnUseGpsEdit = document.getElementById('btnUseGpsForEditHotel');
+    if (btnUseGpsEdit) {
+      btnUseGpsEdit.addEventListener('click', async () => {
+        btnUseGpsEdit.textContent = '⏳ קורא מיקום GPS...';
+        try {
+          if (navigator.geolocation) {
+            await window.locationService.requestLiveGPS();
+          }
+          const lat = window.locationService.currentLat;
+          const lng = window.locationService.currentLng;
+          document.getElementById('editHotelLat').value = lat;
+          document.getElementById('editHotelLng').value = lng;
+          try {
+            const rev = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18`, { headers: { 'Accept-Language': 'he,en' } });
+            const d = await rev.json();
+            if (d && d.display_name) {
+              document.getElementById('editHotelAddress').value = d.display_name.split(',').slice(0, 3).join(',');
+            }
+          } catch (_) {}
+          btnUseGpsEdit.textContent = '✓ נקלט מיקום ה-GPS הנוכחי!';
+        } catch (e) {
+          btnUseGpsEdit.textContent = '⚠️ שגיאה בקריאת GPS';
+        }
+      });
+    }
+
     // מתג תצוגת מפה / כרטיסיות במסכים קטנים
     const toggleMapBtn = document.getElementById('btnToggleMobileMap');
     if (toggleMapBtn) {
@@ -289,6 +344,51 @@ class App {
 
     // 6. עדכון באנר האטרקציה הקרובה
     this.updateNearestHeroBanner(currentLat, currentLng);
+
+    // 7. עדכון סרגל בחירת אטרקציה בסביבה
+    this.renderAttractionPicker();
+  }
+
+  async renderAttractionPicker() {
+    const container = document.getElementById('nearbyAttractionsPickerContainer');
+    if (!container) return;
+
+    const currentLat = window.locationService.currentLat;
+    const currentLng = window.locationService.currentLng;
+    const nearbyList = await window.attractionModalManager.getNearbyAttractionsList(currentLat, currentLng);
+    const selectedSpot = window.attractionModalManager.selectedSpot || nearbyList[0];
+    const deviceTime = window.attractionModalManager.getDeviceDateTime();
+
+    if (!nearbyList || nearbyList.length === 0) {
+      container.innerHTML = '<p style="color: #94a3b8; font-size: 0.9rem; padding: 8px;">לא נמצאו אטרקציות נוספות באזור זה.</p>';
+      return;
+    }
+
+    container.innerHTML = nearbyList.slice(0, 8).map(spot => {
+      const isSelected = selectedSpot && selectedSpot.id === spot.id;
+      const openStatus = window.attractionModalManager.checkOpenStatus(spot.schedule, deviceTime);
+      const distFormatted = window.hotelDistanceCalculator.formatDistance(spot.distanceMeters);
+
+      return `
+        <div class="picker-spot-card ${isSelected ? 'selected-spot' : ''}" onclick="window.app.handleSelectNearbySpot('${spot.id}')">
+          <div class="picker-spot-top">
+            <span class="picker-spot-name">${spot.name}</span>
+            <span class="picker-spot-dist">📍 ${distFormatted}</span>
+          </div>
+          <div class="picker-spot-footer">
+            <span class="picker-spot-status ${openStatus.badgeClass}">${openStatus.statusText.split(' ')[0]} ${openStatus.statusText.split(' ')[1] || ''}</span>
+            <button class="btn-select-spot-action" type="button">
+              ${isSelected ? 'אתה כאן ✓' : 'אני כאן! 📍'}
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  handleSelectNearbySpot(spotId) {
+    window.attractionModalManager.selectAttraction(spotId);
+    this.renderAttractionPicker();
   }
 
   updateNearestHeroBanner(lat, lng) {
@@ -320,6 +420,21 @@ class App {
       folder.hotelLng,
       folder.city.includes('ישראל') ? '₪' : '€'
     );
+
+    // התראה אם המלון רשום בעיר מרוחקת (למשל נשאר בעיר אחרת)
+    const existingWarning = document.getElementById('hotelDistanceNotice');
+    const widgetCard = document.querySelector('.hotel-distance-widget');
+    if (hotelInfo.directMeters > 250000) {
+      if (!existingWarning && widgetCard) {
+        const notice = document.createElement('div');
+        notice.id = 'hotelDistanceNotice';
+        notice.style.cssText = 'background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.88rem; color: #fbbf24; line-height: 1.4;';
+        notice.innerHTML = `⚠️ <strong>שימו לב:</strong> המלון השמור (${folder.hotelName}) מרוחק מאוד ממיקומכם הנוכחי (${hotelInfo.formattedDistance}). <a href="#" onclick="window.app.openEditHotelModal(); return false;" style="color: #fff; text-decoration: underline; font-weight: 700;">לחצו כאן לעדכון כתובת המלון או לשימוש ב-GPS הנוכחי</a>.`;
+        widgetCard.prepend(notice);
+      }
+    } else if (existingWarning) {
+      existingWarning.remove();
+    }
 
     // שם המלון והמרחק הכללי
     const nameEl = document.getElementById('hotelWidgetName');
@@ -494,7 +609,26 @@ class App {
     }
   }
 
-  handleSaveNewFolder() {
+  async geocodeAddress(query) {
+    if (!query || !query.trim()) return null;
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+      const res = await fetch(url, { headers: { 'Accept-Language': 'he,en' } });
+      const data = await res.json();
+      if (data && data.length > 0) {
+        return {
+          lat: parseFloat(data[0].lat),
+          lng: parseFloat(data[0].lon),
+          displayName: data[0].display_name
+        };
+      }
+    } catch (err) {
+      console.warn('Geocoding query failed:', err);
+    }
+    return null;
+  }
+
+  async handleSaveNewFolder() {
     const name = document.getElementById('newTripName').value.trim();
     const city = document.getElementById('newTripCity').value.trim();
     const hotelName = document.getElementById('newTripHotel').value.trim();
@@ -507,27 +641,50 @@ class App {
       return;
     }
 
-    // קביעת קואורדינטות לפי עיר נבחרת או מרכז אירופה
-    let lat = 41.9018;
-    let lng = 12.4938;
+    const submitBtn = document.getElementById('btnSubmitNewFolder');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = '⏳ שומר ומאתר מיקום במפה...';
+    }
+
+    let lat = null;
+    let lng = null;
     let hotspotId = null;
 
-    if (city.includes('פריז') || city.toLowerCase().includes('paris')) {
-      lat = 48.8566;
-      lng = 2.3522;
-      hotspotId = 'paris-eiffel';
-    } else if (city.includes('ברצלונה') || city.toLowerCase().includes('barcelona')) {
-      lat = 41.3879;
-      lng = 2.1699;
-      hotspotId = 'bcn-sagrada';
-    } else if (city.includes('תל אביב') || city.toLowerCase().includes('tel aviv')) {
-      lat = 32.0853;
-      lng = 34.7818;
-      hotspotId = 'tlv-beach';
-    } else if (city.includes('רומא') || city.toLowerCase().includes('rome')) {
-      lat = 41.9018;
-      lng = 12.4938;
-      hotspotId = 'rome-colosseum';
+    // 1. נסה לאתר את הכתובת המדויקת של המלון ברשת (Nominatim)
+    const fullHotelQuery = hotelAddress ? `${hotelAddress}, ${city}` : `${hotelName}, ${city}`;
+    const hotelGeo = await this.geocodeAddress(fullHotelQuery);
+    if (hotelGeo) {
+      lat = hotelGeo.lat;
+      lng = hotelGeo.lng;
+    }
+
+    // 2. אם לא נמצא, נסה לאתר לפי שם העיר
+    if (!lat || !lng) {
+      const cityGeo = await this.geocodeAddress(city);
+      if (cityGeo) {
+        lat = cityGeo.lat;
+        lng = cityGeo.lng;
+      }
+    }
+
+    // 3. בדיקה בטבלת ערים מוכרות (ירושלים, תל אביב, חיפה, אילת וכו')
+    if (!lat || !lng) {
+      const cityPresets = window.NaftalbergData.CITY_COORDINATES || {};
+      for (const [cityName, coords] of Object.entries(cityPresets)) {
+        if (city.includes(cityName) || cityName.includes(city)) {
+          lat = coords.lat;
+          lng = coords.lng;
+          hotspotId = coords.hotspotId;
+          break;
+        }
+      }
+    }
+
+    // 4. ברירת מחדל: המיקום הנוכחי של המשתמש (GPS) או ישראל, לא רומא!
+    if (!lat || !lng) {
+      lat = window.locationService ? window.locationService.currentLat : 32.0853;
+      lng = window.locationService ? window.locationService.currentLng : 34.7818;
     }
 
     const newFolder = window.foldersManager.createFolder({
@@ -541,6 +698,11 @@ class App {
       icon,
       currentHotspotId: hotspotId
     });
+
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = '💾 שמור תיקייה והתחל חקירה';
+    }
 
     this.closeFolderModal();
     this.renderFolders();
@@ -575,17 +737,36 @@ class App {
     }
   }
 
-  handleSaveHotelDetails() {
+  async handleSaveHotelDetails() {
     const id = document.getElementById('editHotelFolderId').value;
     const hotelName = document.getElementById('editHotelName').value.trim();
     const hotelAddress = document.getElementById('editHotelAddress').value.trim();
-    const hotelLat = parseFloat(document.getElementById('editHotelLat').value) || 41.9018;
-    const hotelLng = parseFloat(document.getElementById('editHotelLng').value) || 12.4938;
+    let hotelLat = parseFloat(document.getElementById('editHotelLat').value);
+    let hotelLng = parseFloat(document.getElementById('editHotelLng').value);
     const hotelNotes = document.getElementById('editHotelNotes').value.trim();
 
     if (!hotelName) {
       alert('נא להזין שם מלון.');
       return;
+    }
+
+    const folder = window.foldersManager.folders.find(f => f.id === id);
+    const city = folder ? folder.city : '';
+
+    // אם לא הוזנו קואורדינטות ידניות, נסה לאתר אוטומטית לפי כתובת
+    if (isNaN(hotelLat) || isNaN(hotelLng) || (hotelAddress && hotelAddress !== folder?.hotelAddress)) {
+      const fullQuery = hotelAddress ? `${hotelAddress}, ${city}` : `${hotelName}, ${city}`;
+      const geo = await this.geocodeAddress(fullQuery);
+      if (geo) {
+        hotelLat = geo.lat;
+        hotelLng = geo.lng;
+      }
+    }
+
+    // fallback: השתמש במיקום הנוכחי או בעיר
+    if (isNaN(hotelLat) || isNaN(hotelLng)) {
+      hotelLat = window.locationService ? window.locationService.currentLat : 32.0853;
+      hotelLng = window.locationService ? window.locationService.currentLng : 34.7818;
     }
 
     window.foldersManager.updateFolder(id, {

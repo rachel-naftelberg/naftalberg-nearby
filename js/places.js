@@ -11,13 +11,28 @@ class PlacesService {
 
   // איסוף כל המקומות בסביבת המיקום הנוכחי
   getNearbyPlaces(lat, lng) {
-    const nearestSpot = window.attractionModalManager.findNearestAttraction(lat, lng);
-    if (!nearestSpot || !nearestSpot.nearbyPlaces) {
+    const activeSpot = window.attractionModalManager.selectedSpot;
+    let spot = activeSpot || window.attractionModalManager.findNearestAttraction(lat, lng);
+
+    let rawPlaces = [];
+    if (spot && spot.nearbyPlaces && spot.nearbyPlaces.length > 0) {
+      rawPlaces = spot.nearbyPlaces;
+    } else {
+      // אם הנקודה הנבחרת דינמית או חסרת מקומות, אסוף מקומות מכל נקודות הציון הקרובות
+      const allHotspots = Object.values(window.NaftalbergData.HOTSPOTS_DATA);
+      for (const h of allHotspots) {
+        if (h.nearbyPlaces) {
+          rawPlaces = rawPlaces.concat(h.nearbyPlaces);
+        }
+      }
+    }
+
+    if (!rawPlaces.length) {
       return [];
     }
 
     // חישוב מרחק מדויק מכל מקום למיקום המשתמש הנוכחי
-    const places = nearestSpot.nearbyPlaces.map(place => {
+    const places = rawPlaces.map(place => {
       const dist = window.hotelDistanceCalculator.calculateHaversineDistance(
         lat,
         lng,

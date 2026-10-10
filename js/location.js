@@ -37,6 +37,9 @@ class LocationService {
     this.currentLng = parseFloat(lng);
     this.locationName = name;
     this.isLiveGPS = isLive;
+    if (isLive && window.attractionModalManager) {
+      window.attractionModalManager.selectedSpot = null;
+    }
     this.notifyListeners();
   }
 
