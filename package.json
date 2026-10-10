@@ -1,0 +1,20 @@
+{
+  "name": "naftalberg-nearby",
+  "version": "1.0.0",
+  "description": "טיולי נפתלברג - מה בסביבה: אפליקציית WEB מתקדמת למטיילים לזיהוי מיקום, מזג אוויר, אטרקציות, שירותים ומרחק מהמלון",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "travel",
+    "nearby",
+    "naftalberg",
+    "weather",
+    "hotels",
+    "places"
+  ],
+  "author": "Antigravity",
+  "license": "MIT"
+}
