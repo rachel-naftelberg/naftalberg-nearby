@@ -15,8 +15,19 @@ class FoldersManager {
     try {
       const stored = localStorage.getItem(STORAGE_KEY_FOLDERS);
       if (stored) {
-        const parsed = JSON.parse(stored);
+        let parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
+          const defaults = window.NaftalbergData ? window.NaftalbergData.DEFAULT_FOLDERS : [];
+          let changed = false;
+          defaults.forEach(def => {
+            if (!parsed.some(f => f.id === def.id)) {
+              parsed.push(def);
+              changed = true;
+            }
+          });
+          if (changed) {
+            this.saveFolders(parsed);
+          }
           return parsed;
         }
       }

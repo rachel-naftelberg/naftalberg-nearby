@@ -303,10 +303,16 @@ class App {
     // הגדרת מיקום התחלתי בעיר התיקייה
     if (folder.currentHotspotId && window.NaftalbergData.HOTSPOTS_DATA[folder.currentHotspotId]) {
       const spot = window.NaftalbergData.HOTSPOTS_DATA[folder.currentHotspotId];
+      if (window.attractionModalManager) {
+        window.attractionModalManager.selectedSpot = spot;
+      }
       window.locationService.setLocation(spot.lat, spot.lng, spot.name, false);
       const selector = document.getElementById('hotspotSelector');
       if (selector) selector.value = folder.currentHotspotId;
     } else {
+      if (window.attractionModalManager) {
+        window.attractionModalManager.selectedSpot = null;
+      }
       window.locationService.setLocation(folder.centerLat || folder.hotelLat, folder.centerLng || folder.hotelLng, folder.city, false);
     }
 
@@ -335,7 +341,7 @@ class App {
     // 3. עדכון מזג אוויר חי
     this.updateWeatherWidget(currentLat, currentLng);
 
-    // 4. עדכון רשימת מקומות בסביבה
+    // 4. עדכון רשימת מקומות בסביבה (נתונים מקומיים מידיים)
     this.placesCache = window.placesService.getNearbyPlaces(currentLat, currentLng);
     this.renderPlacesList();
 
@@ -346,7 +352,18 @@ class App {
     this.updateNearestHeroBanner(currentLat, currentLng);
 
     // 7. עדכון סרגל בחירת אטרקציה בסביבה
-    this.renderAttractionPicker();
+    await this.renderAttractionPicker();
+
+    // 8. משיכת מקומות חיים בסביבה ברקע
+    if (window.placesService && window.placesService.fetchLivePlaces) {
+      window.placesService.fetchLivePlaces(currentLat, currentLng).then(live => {
+        if (live && live.length > 0) {
+          this.placesCache = window.placesService.getNearbyPlaces(currentLat, currentLng);
+          this.renderPlacesList();
+          window.mapService.renderNearbyMarkers(this.placesCache);
+        }
+      });
+    }
   }
 
   async renderAttractionPicker() {
@@ -685,6 +702,18 @@ class App {
     if (!lat || !lng) {
       lat = window.locationService ? window.locationService.currentLat : 32.0853;
       lng = window.locationService ? window.locationService.currentLng : 34.7818;
+    }
+
+    // 5. בדיקה אם העיר מתאימה לאחת מנקודות הציון המוכרות (זכרון יעקב, ירושלים, תל אביב וכו')
+    if (!hotspotId && window.NaftalbergData && window.NaftalbergData.CITY_COORDINATES) {
+      for (const [cityName, coords] of Object.entries(window.NaftalbergData.CITY_COORDINATES)) {
+        if (city.includes(cityName) || cityName.includes(city)) {
+          if (coords.hotspotId) {
+            hotspotId = coords.hotspotId;
+            break;
+          }
+        }
+      }
     }
 
     const newFolder = window.foldersManager.createFolder({
