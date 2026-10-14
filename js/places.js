@@ -310,7 +310,7 @@ out center 30;`;
         <div class="place-card-footer">
           <span class="place-address">${place.address ? `📌 ${place.address}` : ''}</span>
           <div class="place-actions">
-            <button class="btn-card-map" onclick="window.mapService.flyToAndHighlight(${place.lat}, ${place.lng}, '${place.name.replace(/'/g, "\\'")}')" title="הצג במפה">
+            <button class="btn-card-map" onclick="window.mapService.flyToAndHighlight(${place.lat}, ${place.lng}, '${place.name.replace(/'/g, "\\'")}', true)" title="הצג במפה">
               🗺️ מפה
             </button>
             <a href="https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}" target="_blank" rel="noopener" class="btn-card-navigate" title="נווט">

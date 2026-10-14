@@ -439,8 +439,9 @@ class AttractionModalManager {
         }
       }
 
-      if (window.mapService) {
-        window.mapService.flyToAndHighlight(spot.lat, spot.lng, spot.name);
+      // עדכון שקט של מרכז המפה ברקע ללא גלילה וללא קפיצה
+      if (window.mapService && window.mapService.map) {
+        window.mapService.map.panTo([spot.lat, spot.lng]);
       }
     }
   }

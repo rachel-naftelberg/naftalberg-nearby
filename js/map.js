@@ -143,14 +143,16 @@ class MapService {
     });
   }
 
-  flyToAndHighlight(lat, lng, name = '') {
+  flyToAndHighlight(lat, lng, name = '', shouldScroll = false) {
     if (!this.map) return;
     this.map.flyTo([lat, lng], 17, { duration: 1.2 });
     
-    // גלילה למפה במסכים קטנים
-    const mapSection = document.getElementById('mapSection');
-    if (mapSection) {
-      mapSection.scrollIntoView({ behavior: 'smooth' });
+    // גלילה למפה רק אם המשתמש לחץ במפורש על כפתור "הצג במפה"
+    if (shouldScroll) {
+      const mapSection = document.getElementById('mapSection');
+      if (mapSection) {
+        mapSection.scrollIntoView({ behavior: 'smooth' });
+      }
     }
   }
 }

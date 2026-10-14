@@ -194,7 +194,7 @@ class NaftalbergApp {
       btnFocusMapAttraction.addEventListener('click', () => {
         const lat = window.locationService.currentLat;
         const lng = window.locationService.currentLng;
-        window.mapService.flyToAndHighlight(lat, lng);
+        window.mapService.flyToAndHighlight(lat, lng, '', true);
       });
     }
 
