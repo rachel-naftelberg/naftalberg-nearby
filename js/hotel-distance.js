@@ -1,11 +1,14 @@
 // ==========================================================================
-// חישוב מרחק וזמני הגעה מהמלון (Hotel Distance & Travel Times Calculator)
-// ברגל, בתחבורה ציבורית וברכב / מונית
+// מחשבון מרחק מהמלון (Hotel Distance & Travel Modes Calculator)
+// חישוב מרחק מדויק ברגל, בתחבורה ציבורית וברכב / מונית
 // ==========================================================================
 
 class HotelDistanceCalculator {
-  // חישוב מרחק גיאודזי במטרים (Haversine formula)
+  // חישוב נוסחת Haversine למרחק גיאוגרפי מדויק במטרים
   calculateHaversineDistance(lat1, lon1, lat2, lon2) {
+    if (lat1 === undefined || lon1 === undefined || lat2 === undefined || lon2 === undefined) {
+      return 0;
+    }
     const R = 6371e3; // רדיוס כדור הארץ במטרים
     const φ1 = (lat1 * Math.PI) / 180;
     const φ2 = (lat2 * Math.PI) / 180;
@@ -17,80 +20,74 @@ class HotelDistanceCalculator {
       Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-    return Math.round(R * c); // מרחק במטרים
+    return Math.round(R * c);
   }
 
+  // עיצוב מרחק קריא במטרים / קילומטרים
   formatDistance(meters) {
     if (meters < 1000) {
-      return `${meters} מטרים`;
+      return `${Math.round(meters)} מטר`;
     }
     const km = (meters / 1000).toFixed(1);
     return `${km} ק״מ`;
   }
 
-  calculateTrip(userLat, userLng, hotelLat, hotelLng, currency = '€') {
+  // חישוב זמני הגעה ועלויות לשלושת אמצעי התחבורה
+  calculateTrip(userLat, userLng, hotelLat, hotelLng, currency = '₪') {
     const directMeters = this.calculateHaversineDistance(userLat, userLng, hotelLat, hotelLng);
-    const directKm = directMeters / 1000;
 
-    // מקדם רחובות עירוניים (רחובות מפותלים, רמזורים, מעברי חצייה)
-    const streetKm = directKm * 1.25;
+    // 1. הליכה ברגל (מהירות ממוצעת 4.5 קמ"ש, פקטור פיתול רחובות 1.25)
+    const walkDistanceMeters = directMeters * 1.25;
+    const walkMinutes = Math.max(1, Math.round((walkDistanceMeters / 1000) * (60 / 4.5)));
+    const walkSteps = Math.round((walkDistanceMeters / 1000) * 1320); // ~1,320 צעדים לק"מ
 
-    // 1. הליכה ברגל (מהירות ממוצעת 4.5 קמ"ש)
-    const walkMinutes = Math.max(1, Math.round((streetKm / 4.5) * 60));
-    const walkSteps = Math.round(streetKm * 1350);
-    const walkCalories = Math.round(streetKm * 55);
-
-    // 2. תחבורה ציבורית (מטרו / אוטובוס: המתנה 4-6 דק' + נסיעה עירונית 20 קמ"ש)
-    const transitMinutes = directMeters < 500 
-      ? walkMinutes 
-      : Math.max(6, Math.round(5 + (streetKm / 22) * 60));
-
-    // 3. רכב / מונית (מהירות עירונית 25 קמ"ש + 2 דק' עלייה)
-    const driveMinutes = Math.max(3, Math.round(2 + (streetKm / 26) * 60));
-    
-    // הערכת עלות מונית
-    let taxiEstimate = '';
-    if (currency === '₪') {
-      const taxiShekel = Math.round(15 + streetKm * 4.5);
-      taxiEstimate = `~${taxiShekel} ₪`;
+    // 2. תחבורה ציבורית (זמן המתנה 6 דק' + מהירות נסיעה עירונית 20 קמ"ש)
+    let transitMinutes = 0;
+    let transitTip = 'אוטובוס / קו ישיר';
+    if (directMeters <= 500) {
+      transitMinutes = walkMinutes;
+      transitTip = 'הליכה קצרה מומלצת';
     } else {
-      const taxiEuro = Math.round(6 + streetKm * 1.8);
-      taxiEstimate = `~${taxiEuro} €`;
+      transitMinutes = Math.max(8, Math.round(6 + (directMeters / 1000) * (60 / 22)));
+      if (directMeters > 3000) {
+        transitTip = 'רכבת / קווי אקספרס';
+      }
     }
 
-    // קישורי ניווט מדויקים ל-Google Maps
-    const mapsBase = 'https://www.google.com/maps/dir/?api=1';
-    const originParam = `&origin=${userLat},${userLng}`;
-    const destParam = `&destination=${hotelLat},${hotelLng}`;
+    // 3. רכב / מונית (מהירות עירונית 30 קמ"ש)
+    const driveMinutes = Math.max(3, Math.round(3 + (directMeters / 1000) * (60 / 30)));
+    // הערכת עלות מונית
+    let taxiCost = 0;
+    if (currency === '€') {
+      taxiCost = Math.round(5 + (directMeters / 1000) * 1.8);
+    } else {
+      taxiCost = Math.round(18 + (directMeters / 1000) * 5.5);
+    }
 
     return {
       directMeters,
-      streetKm: streetKm.toFixed(1),
       formattedDistance: this.formatDistance(directMeters),
-      
-      // ברגל
-      walking: {
+      walk: {
         minutes: walkMinutes,
-        text: walkMinutes === 1 ? 'דקה אחת ברגל' : `${walkMinutes} דקות ברגל`,
+        formattedTime: walkMinutes > 60 
+          ? `${Math.floor(walkMinutes / 60)} שע׳ ו-${walkMinutes % 60} דק׳` 
+          : `${walkMinutes} דק׳`,
         steps: walkSteps.toLocaleString(),
-        calories: walkCalories,
-        mapsUrl: `${mapsBase}${originParam}${destParam}&travelmode=walking`
+        formattedSteps: `כ-${walkSteps.toLocaleString()} צעדים`
       },
-
-      // תחבורה ציבורית
       transit: {
         minutes: transitMinutes,
-        text: `${transitMinutes} דקות בתחב״צ`,
-        advice: directMeters < 600 ? 'המרחק קצר - מומלץ ללכת ברגל' : 'מטרו / קו אוטובוס סמוך',
-        mapsUrl: `${mapsBase}${originParam}${destParam}&travelmode=transit`
+        formattedTime: transitMinutes > 60 
+          ? `${Math.floor(transitMinutes / 60)} שע׳ ו-${transitMinutes % 60} דק׳` 
+          : `${transitMinutes} דק׳`,
+        tip: transitTip
       },
-
-      // ברכב / מונית
-      driving: {
+      drive: {
         minutes: driveMinutes,
-        text: `${driveMinutes} דקות ברכב / מונית`,
-        taxiCost: taxiEstimate,
-        mapsUrl: `${mapsBase}${originParam}${destParam}&travelmode=driving`
+        formattedTime: driveMinutes > 60 
+          ? `${Math.floor(driveMinutes / 60)} שע׳ ו-${driveMinutes % 60} דק׳` 
+          : `${driveMinutes} דק׳`,
+        estimatedCost: `~${taxiCost} ${currency}`
       }
     };
   }

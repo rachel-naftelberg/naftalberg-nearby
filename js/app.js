@@ -1,285 +1,280 @@
 // ==========================================================================
-// אפליקציית "טיולי נפתלברג - מה בסביבה" - מנהל יישום ראשי (Main App Controller)
+// טיולי נפתלברג - מה בסביבה | הבקר הראשי (Main App Controller)
+// חיבור כל הרכיבים: תיקיות, מיקום, מזג אוויר, מרחק מהמלון ואטרקציות
 // ==========================================================================
 
-class App {
+class NaftalbergApp {
   constructor() {
-    this.currentView = 'explore'; // 'folders' or 'explore'
+    this.currentView = 'folders';
     this.currentCategory = 'all';
     this.placesCache = [];
   }
 
-  async init() {
-    console.log('🚀 טיולי נפתלברג - מה בסביבה | מאתחל מערכת...');
+  init() {
+    // 1. שעון חי בממשק
+    this.startDeviceClock();
 
-    // 1. אתחול מאזינים
+    // 2. אתחול מאזיני אירועים
     this.bindEvents();
 
-    // 2. רינדור מסך התיקיות
+    // 3. הצגת מסך תיקיות כברירת מחדל בכניסה
     this.renderFolders();
+    this.switchView('folders');
 
-    // 3. טעינת התיקייה הפעילה
-    const activeFolder = window.foldersManager.getActiveFolder();
-    if (activeFolder) {
-      this.applyActiveFolder(activeFolder);
-    } else {
-      this.switchView('folders');
-    }
-
-    // 4. שעון חי בממשק
-    this.startClock();
-
-    // 5. אתחול מפה
+    // 4. אתחול מפה עם השהייה קלה לטעינת DOM
     setTimeout(() => {
-      window.mapService.initMap(
-        'leafletMapContainer',
-        window.locationService.currentLat,
-        window.locationService.currentLng
-      );
-      this.refreshExploreView();
-    }, 400);
+      const active = window.foldersManager.getActiveFolder();
+      const lat = active ? active.hotelLat : 32.5714;
+      const lng = active ? active.hotelLng : 34.9530;
+      window.mapService.initMap('leafletMap', lat, lng);
+    }, 300);
 
-    // 6. הרשמה לשינויי מיקום
+    // 5. הרשמה לשינויי מיקום
     window.locationService.onLocationChange(() => {
-      this.refreshExploreView();
+      if (this.currentView === 'explore') {
+        this.refreshExploreView();
+      }
     });
   }
 
-  startClock() {
-    const updateTime = () => {
-      const now = new Date();
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-      const dayName = days[now.getDay()];
-
-      const timeEls = document.querySelectorAll('.live-device-clock-text');
-      timeEls.forEach(el => {
-        el.textContent = `יום ${dayName}, ${hours}:${minutes}`;
-      });
+  // עדכון שעון המכשיר בכל שנייה
+  startDeviceClock() {
+    const clockDisplay = document.getElementById('headerClockText');
+    const update = () => {
+      const dt = window.attractionModalManager.getDeviceDateTime();
+      if (clockDisplay) {
+        clockDisplay.textContent = `${dt.dayName}, ${dt.timeStr}`;
+      }
     };
-    updateTime();
-    setInterval(updateTime, 30000);
+    update();
+    setInterval(update, 1000);
   }
 
   bindEvents() {
-    // ניווט ראשי
-    document.querySelectorAll('[data-view-target]').forEach(btn => {
+    // מעבר בין מסכים מתפריט תחתון ומעלה
+    document.querySelectorAll('.bottom-nav-item').forEach(btn => {
       btn.addEventListener('click', e => {
-        const target = e.currentTarget.getAttribute('data-view-target');
-        this.switchView(target);
+        const target = e.currentTarget.getAttribute('data-target');
+        if (target === 'viewFolders') {
+          this.switchView('folders');
+        } else if (target === 'viewExplore') {
+          this.switchView('explore');
+        } else if (target === 'mapSection') {
+          this.switchView('explore');
+          setTimeout(() => {
+            const mapEl = document.getElementById('mapSection');
+            if (mapEl) mapEl.scrollIntoView({ behavior: 'smooth' });
+          }, 200);
+        }
       });
     });
 
-    // כפתור "איפה אני נמצא עכשיו?"
-    const whereAmIBtn = document.getElementById('btnWhereAmI');
-    if (whereAmIBtn) {
-      whereAmIBtn.addEventListener('click', () => {
-        window.attractionModalManager.openModal();
+    const btnHeaderFolders = document.getElementById('btnHeaderFolders');
+    if (btnHeaderFolders) {
+      btnHeaderFolders.addEventListener('click', () => this.switchView('folders'));
+    }
+
+    const btnSwitchTrip = document.getElementById('btnSwitchTrip');
+    if (btnSwitchTrip) {
+      btnSwitchTrip.addEventListener('click', () => this.switchView('folders'));
+    }
+
+    // פתיחת מודל יצירת תיקייה
+    const btnOpenCreate = document.getElementById('btnOpenCreateFolder');
+    if (btnOpenCreate) {
+      btnOpenCreate.addEventListener('click', () => this.openFolderModal());
+    }
+
+    const btnCloseFolderModal = document.getElementById('btnCloseFolderModal');
+    if (btnCloseFolderModal) {
+      btnCloseFolderModal.addEventListener('click', () => this.closeFolderModal());
+    }
+
+    const backdropFolder = document.getElementById('backdropFolder');
+    if (backdropFolder) {
+      backdropFolder.addEventListener('click', () => this.closeFolderModal());
+    }
+
+    // טופס שמירת תיקייה
+    const formFolder = document.getElementById('formFolder');
+    if (formFolder) {
+      formFolder.addEventListener('submit', e => {
+        e.preventDefault();
+        this.handleSaveNewFolder();
       });
     }
 
-    // סגירת מודל אטרקציה
-    const closeAttrModalBtn = document.getElementById('closeAttrModal');
-    if (closeAttrModalBtn) {
-      closeAttrModalBtn.addEventListener('click', () => {
-        window.attractionModalManager.closeModal();
-      });
-    }
-
-    const attrModalOverlay = document.getElementById('attractionModal');
-    if (attrModalOverlay) {
-      attrModalOverlay.addEventListener('click', e => {
-        if (e.target === attrModalOverlay) {
-          window.attractionModalManager.closeModal();
-        }
-      });
-    }
-
-    // כפתור GPS חי
-    const liveGPSBtn = document.getElementById('btnLiveGPS');
-    if (liveGPSBtn) {
-      liveGPSBtn.addEventListener('click', async () => {
+    // כפתור שימוש במיקום ה-GPS הנוכחי עבור המלון
+    const btnUseGpsForHotel = document.getElementById('btnUseGpsForHotel');
+    if (btnUseGpsForHotel) {
+      btnUseGpsForHotel.addEventListener('click', async () => {
+        btnUseGpsForHotel.textContent = '⏳ קורא מיקום GPS...';
         try {
-          liveGPSBtn.classList.add('loading');
-          await window.locationService.requestLiveGPS();
+          const coords = await window.locationService.requestLiveGPS();
+          document.getElementById('formHotelLat').value = coords.lat;
+          document.getElementById('formHotelLng').value = coords.lng;
+
+          // Reverse geocode
+          try {
+            const rev = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.lat}&lon=${coords.lng}&zoom=18`, { headers: { 'Accept-Language': 'he,en' } });
+            const d = await rev.json();
+            if (d && d.display_name) {
+              document.getElementById('formHotelAddress').value = d.display_name.split(',').slice(0, 3).join(',');
+              if (!document.getElementById('formTripCity').value) {
+                document.getElementById('formTripCity').value = d.address?.city || d.address?.town || d.address?.village || 'ישראל';
+              }
+            }
+          } catch (_) {}
+
+          btnUseGpsForHotel.textContent = '✓ נקלט מיקום ה-GPS הנוכחי!';
+          const statusHint = document.getElementById('gpsHotelStatusHint');
+          if (statusHint) statusHint.textContent = `קואורדינטות: ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`;
         } catch (err) {
-          console.warn('GPS request failed:', err);
-        } finally {
-          liveGPSBtn.classList.remove('loading');
+          btnUseGpsForHotel.textContent = '⚠️ שגיאה בקריאת GPS';
         }
       });
     }
 
-    // סימולטור נקודות ציון
-    const hotspotSelect = document.getElementById('hotspotSelector');
+    // כפתור קריאת GPS חי מהמכשיר בבאנר הראשי
+    const btnLiveGps = document.getElementById('btnLiveGps');
+    if (btnLiveGps) {
+      btnLiveGps.addEventListener('click', async () => {
+        btnLiveGps.innerHTML = '<span class="gps-pulse-dot"></span><span>⏳ מחפש לוויינים...</span>';
+        try {
+          await window.locationService.requestLiveGPS();
+          btnLiveGps.innerHTML = '<span class="gps-pulse-dot"></span><span>✓ מיקום חי פעיל</span>';
+          this.refreshExploreView();
+        } catch (err) {
+          btnLiveGps.innerHTML = '<span class="gps-pulse-dot"></span><span>⚠️ GPS לא זמין</span>';
+        }
+      });
+    }
+
+    // החלפת נקודת ציון (סימולטור)
+    const hotspotSelect = document.getElementById('hotspotSelect');
     if (hotspotSelect) {
       hotspotSelect.addEventListener('change', e => {
         const spotId = e.target.value;
         const spot = window.NaftalbergData.HOTSPOTS_DATA[spotId];
         if (spot) {
+          if (window.attractionModalManager) {
+            window.attractionModalManager.selectedSpot = spot;
+          }
           window.locationService.setLocation(spot.lat, spot.lng, spot.name, false);
+          this.refreshExploreView();
+        }
+      });
+    }
+
+    // פתיחה וסגירה של מודל "איפה אני נמצא"
+    const btnOpenAttraction = document.getElementById('btnOpenAttractionModal');
+    if (btnOpenAttraction) {
+      btnOpenAttraction.addEventListener('click', () => {
+        window.attractionModalManager.openModal();
+      });
+    }
+
+    const btnCloseAttraction = document.getElementById('btnCloseAttractionModal');
+    if (btnCloseAttraction) {
+      btnCloseAttraction.addEventListener('click', () => {
+        window.attractionModalManager.closeModal();
+      });
+    }
+
+    const backdropAttraction = document.getElementById('backdropAttraction');
+    if (backdropAttraction) {
+      backdropAttraction.addEventListener('click', () => {
+        window.attractionModalManager.closeModal();
+      });
+    }
+
+    // כפתור הצג במפה בבאנר Hero
+    const btnFocusMapAttraction = document.getElementById('btnFocusMapAttraction');
+    if (btnFocusMapAttraction) {
+      btnFocusMapAttraction.addEventListener('click', () => {
+        const lat = window.locationService.currentLat;
+        const lng = window.locationService.currentLng;
+        window.mapService.flyToAndHighlight(lat, lng);
+      });
+    }
+
+    // עריכת מלון מהירה מווידג'ט המלון
+    const btnOpenEditHotel = document.getElementById('btnOpenEditHotel');
+    if (btnOpenEditHotel) {
+      btnOpenEditHotel.addEventListener('click', () => {
+        const active = window.foldersManager.getActiveFolder();
+        if (active) this.openFolderModal(active.id);
+      });
+    }
+
+    // תיקון מיקום מלון בלחיצה אחת מההתראה
+    const btnFixHotelGps = document.getElementById('btnFixHotelGps');
+    if (btnFixHotelGps) {
+      btnFixHotelGps.addEventListener('click', () => {
+        const active = window.foldersManager.getActiveFolder();
+        if (active) {
+          window.foldersManager.updateFolder(active.id, {
+            hotelLat: window.locationService.currentLat,
+            hotelLng: window.locationService.currentLng,
+            hotelAddress: 'מיקום עדכני לפי מיקומך הנוכחי'
+          });
+          this.refreshExploreView();
         }
       });
     }
 
     // קטגוריות סינון
-    document.querySelectorAll('.category-tab-btn').forEach(btn => {
-      btn.addEventListener('click', e => {
-        document.querySelectorAll('.category-tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.category-tab-btn').forEach(tab => {
+      tab.addEventListener('click', e => {
+        document.querySelectorAll('.category-tab-btn').forEach(t => t.classList.remove('active'));
         e.currentTarget.classList.add('active');
-        const cat = e.currentTarget.getAttribute('data-category');
-        this.currentCategory = cat;
+        this.currentCategory = e.currentTarget.getAttribute('data-category');
+        window.placesService.currentCategory = this.currentCategory;
         this.renderPlacesList();
       });
     });
 
-    // שורת חיפוש
+    // חיפוש מקומות
     const searchInput = document.getElementById('placesSearchInput');
+    const btnClearSearch = document.getElementById('btnClearSearch');
     if (searchInput) {
       searchInput.addEventListener('input', e => {
         window.placesService.searchQuery = e.target.value;
         this.renderPlacesList();
       });
     }
-
-    // יצירת תיקייה חדשה
-    const openCreateFolderBtn = document.getElementById('btnOpenCreateFolder');
-    if (openCreateFolderBtn) {
-      openCreateFolderBtn.addEventListener('click', () => {
-        this.openFolderModal();
-      });
-    }
-
-    const closeFolderModalBtn = document.getElementById('closeFolderModal');
-    if (closeFolderModalBtn) {
-      closeFolderModalBtn.addEventListener('click', () => {
-        this.closeFolderModal();
-      });
-    }
-
-    const folderForm = document.getElementById('folderForm');
-    if (folderForm) {
-      folderForm.addEventListener('submit', e => {
-        e.preventDefault();
-        this.handleSaveNewFolder();
-      });
-    }
-
-    // עריכת פרטי מלון
-    const editHotelBtn = document.getElementById('btnEditHotel');
-    if (editHotelBtn) {
-      editHotelBtn.addEventListener('click', () => {
-        this.openEditHotelModal();
-      });
-    }
-
-    const closeHotelModalBtn = document.getElementById('closeHotelModal');
-    if (closeHotelModalBtn) {
-      closeHotelModalBtn.addEventListener('click', () => {
-        this.closeEditHotelModal();
-      });
-    }
-
-    const hotelForm = document.getElementById('hotelForm');
-    if (hotelForm) {
-      hotelForm.addEventListener('submit', e => {
-        e.preventDefault();
-        this.handleSaveHotelDetails();
-      });
-    }
-
-    // כפתור שימוש במיקום GPS נוכחי עבור מלון בטופס יצירה
-    const btnUseGpsNew = document.getElementById('btnUseGpsForNewHotel');
-    if (btnUseGpsNew) {
-      btnUseGpsNew.addEventListener('click', async () => {
-        btnUseGpsNew.textContent = '⏳ קורא מיקום GPS...';
-        try {
-          if (navigator.geolocation) {
-            await window.locationService.requestLiveGPS();
-          }
-          const lat = window.locationService.currentLat;
-          const lng = window.locationService.currentLng;
-          try {
-            const rev = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18`, { headers: { 'Accept-Language': 'he,en' } });
-            const d = await rev.json();
-            if (d && d.display_name) {
-              document.getElementById('newTripHotelAddress').value = d.display_name.split(',').slice(0, 3).join(',');
-              if (!document.getElementById('newTripCity').value) {
-                document.getElementById('newTripCity').value = d.address?.city || d.address?.town || d.address?.country || 'ישראל';
-              }
-            }
-          } catch (_) {}
-          btnUseGpsNew.textContent = '✓ נקלט מיקום ה-GPS הנוכחי עבור המלון!';
-        } catch (e) {
-          btnUseGpsNew.textContent = '⚠️ שגיאה בקריאת GPS';
-        }
-      });
-    }
-
-    // כפתור שימוש במיקום GPS נוכחי עבור מלון בטופס עריכה
-    const btnUseGpsEdit = document.getElementById('btnUseGpsForEditHotel');
-    if (btnUseGpsEdit) {
-      btnUseGpsEdit.addEventListener('click', async () => {
-        btnUseGpsEdit.textContent = '⏳ קורא מיקום GPS...';
-        try {
-          if (navigator.geolocation) {
-            await window.locationService.requestLiveGPS();
-          }
-          const lat = window.locationService.currentLat;
-          const lng = window.locationService.currentLng;
-          document.getElementById('editHotelLat').value = lat;
-          document.getElementById('editHotelLng').value = lng;
-          try {
-            const rev = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18`, { headers: { 'Accept-Language': 'he,en' } });
-            const d = await rev.json();
-            if (d && d.display_name) {
-              document.getElementById('editHotelAddress').value = d.display_name.split(',').slice(0, 3).join(',');
-            }
-          } catch (_) {}
-          btnUseGpsEdit.textContent = '✓ נקלט מיקום ה-GPS הנוכחי!';
-        } catch (e) {
-          btnUseGpsEdit.textContent = '⚠️ שגיאה בקריאת GPS';
-        }
-      });
-    }
-
-    // מתג תצוגת מפה / כרטיסיות במסכים קטנים
-    const toggleMapBtn = document.getElementById('btnToggleMobileMap');
-    if (toggleMapBtn) {
-      toggleMapBtn.addEventListener('click', () => {
-        const layout = document.querySelector('.explore-content-layout');
-        if (layout) {
-          layout.classList.toggle('show-map-full');
-          if (window.mapService.map) {
-            setTimeout(() => window.mapService.map.invalidateSize(), 200);
-          }
-        }
+    if (btnClearSearch && searchInput) {
+      btnClearSearch.addEventListener('click', () => {
+        searchInput.value = '';
+        window.placesService.searchQuery = '';
+        this.renderPlacesList();
       });
     }
   }
 
+  // מעבר בין מסכים
   switchView(viewName) {
     this.currentView = viewName;
-    document.querySelectorAll('.view-screen').forEach(s => s.classList.remove('active'));
-    
+    const viewFolders = document.getElementById('viewFolders');
+    const viewExplore = document.getElementById('viewExplore');
+
     if (viewName === 'folders') {
-      const foldersView = document.getElementById('viewFolders');
-      if (foldersView) foldersView.classList.add('active');
+      if (viewFolders) viewFolders.classList.add('active');
+      if (viewExplore) viewExplore.classList.remove('active');
       this.renderFolders();
     } else {
-      const exploreView = document.getElementById('viewExplore');
-      if (exploreView) exploreView.classList.add('active');
+      if (viewFolders) viewFolders.classList.remove('active');
+      if (viewExplore) viewExplore.classList.add('active');
       this.refreshExploreView();
-      if (window.mapService.map) {
+      if (window.mapService && window.mapService.map) {
         setTimeout(() => window.mapService.map.invalidateSize(), 200);
       }
     }
 
     // עדכון תפריט תחתון
     document.querySelectorAll('.bottom-nav-item').forEach(item => {
-      const target = item.getAttribute('data-view-target');
-      if (target === viewName) {
+      const target = item.getAttribute('data-target');
+      if (target === (viewName === 'folders' ? 'viewFolders' : 'viewExplore')) {
         item.classList.add('active');
       } else {
         item.classList.remove('active');
@@ -287,27 +282,82 @@ class App {
     });
   }
 
+  // רינדור רשימת התיקיות
+  renderFolders() {
+    const grid = document.getElementById('foldersGrid');
+    const countBadge = document.getElementById('foldersCountBadge');
+    if (!grid) return;
+
+    const folders = window.foldersManager.folders;
+    const activeId = window.foldersManager.activeFolderId;
+
+    if (countBadge) countBadge.textContent = `${folders.length} תיקיות`;
+
+    grid.innerHTML = folders.map(f => {
+      const isActive = f.id === activeId;
+      return `
+        <div class="folder-card ${isActive ? 'active-folder' : ''}">
+          <div class="folder-card-top">
+            <div class="folder-icon-circle">${f.icon || '✈️'}</div>
+            ${isActive ? '<span class="folder-active-pill">פעיל כעת ✨</span>' : ''}
+          </div>
+
+          <h3 class="folder-title">${f.name}</h3>
+          <p class="folder-city">📍 ${f.city}</p>
+
+          <div class="folder-hotel-box">
+            <div class="hotel-box-header">
+              <span>🏨 מלון שמור:</span>
+            </div>
+            <strong class="hotel-box-name">${f.hotelName}</strong>
+            <p class="hotel-box-address">${f.hotelAddress || 'ללא כתובת מדויקת'}</p>
+          </div>
+
+          <div class="folder-card-footer">
+            <button class="btn-open-trip" onclick="window.app.handleSelectFolder('${f.id}')">
+              ${isActive ? '👉 פתח טיול זה' : 'בחר טיול זה'}
+            </button>
+            <button class="btn-folder-action" onclick="window.app.openFolderModal('${f.id}')" title="ערוך פרטי מלון">✏️</button>
+            <button class="btn-folder-action delete" onclick="window.app.handleDeleteFolder('${f.id}')" title="מחק תיקייה">🗑️</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  handleSelectFolder(id) {
+    const folder = window.foldersManager.folders.find(f => f.id === id);
+    if (folder) {
+      window.foldersManager.setActiveFolderId(id);
+      this.applyActiveFolder(folder);
+      this.switchView('explore');
+    }
+  }
+
+  handleDeleteFolder(id) {
+    if (confirm('האם למחוק תיקיית טיול זו?')) {
+      const success = window.foldersManager.deleteFolder(id);
+      if (success) this.renderFolders();
+    }
+  }
+
   applyActiveFolder(folder) {
-    window.foldersManager.setActiveFolderId(folder.id);
+    const nameEl = document.getElementById('activeFolderName');
+    const cityEl = document.getElementById('activeFolderCity');
+    const emojiEl = document.getElementById('activeFolderEmoji');
 
-    // עדכון כותרות ב-Explore
-    const tripNameEl = document.getElementById('activeTripName');
-    if (tripNameEl) tripNameEl.textContent = folder.name;
+    if (nameEl) nameEl.textContent = folder.name;
+    if (cityEl) cityEl.textContent = `📍 ${folder.city}`;
+    if (emojiEl) emojiEl.textContent = folder.icon || '✈️';
 
-    const tripCityEl = document.getElementById('activeTripCity');
-    if (tripCityEl) tripCityEl.textContent = folder.city;
-
-    const folderBadgeIcon = document.getElementById('activeFolderIcon');
-    if (folderBadgeIcon) folderBadgeIcon.textContent = folder.icon || '✈️';
-
-    // הגדרת מיקום התחלתי בעיר התיקייה
+    // הגדרת מיקום התחלתי
     if (folder.currentHotspotId && window.NaftalbergData.HOTSPOTS_DATA[folder.currentHotspotId]) {
       const spot = window.NaftalbergData.HOTSPOTS_DATA[folder.currentHotspotId];
       if (window.attractionModalManager) {
         window.attractionModalManager.selectedSpot = spot;
       }
       window.locationService.setLocation(spot.lat, spot.lng, spot.name, false);
-      const selector = document.getElementById('hotspotSelector');
+      const selector = document.getElementById('hotspotSelect');
       if (selector) selector.value = folder.currentHotspotId;
     } else {
       if (window.attractionModalManager) {
@@ -319,6 +369,7 @@ class App {
     this.refreshExploreView();
   }
 
+  // עדכון מסך החקירה המלא
   async refreshExploreView() {
     const activeFolder = window.foldersManager.getActiveFolder();
     if (!activeFolder) return;
@@ -326,27 +377,31 @@ class App {
     const currentLat = window.locationService.currentLat;
     const currentLng = window.locationService.currentLng;
 
-    // 1. עדכון מפה: משתמש, מלון ומסלול
-    window.mapService.updateUserMarker(currentLat, currentLng);
-    window.mapService.updateHotelMarker(
-      activeFolder.hotelLat,
-      activeFolder.hotelLng,
-      activeFolder.hotelName,
-      activeFolder.hotelAddress
-    );
+    // 1. עדכון מפה
+    if (window.mapService) {
+      window.mapService.updateUserMarker(currentLat, currentLng);
+      window.mapService.updateHotelMarker(
+        activeFolder.hotelLat,
+        activeFolder.hotelLng,
+        activeFolder.hotelName,
+        activeFolder.hotelAddress
+      );
+    }
 
     // 2. עדכון ווידג'ט מרחק מהמלון
     this.updateHotelDistanceWidget(activeFolder, currentLat, currentLng);
 
-    // 3. עדכון מזג אוויר חי
+    // 3. עדכון מזג אוויר
     this.updateWeatherWidget(currentLat, currentLng);
 
-    // 4. עדכון רשימת מקומות בסביבה (נתונים מקומיים מידיים)
+    // 4. איסוף מקומות בסביבה (סינון מרחק קשיח של 15 ק"מ)
     this.placesCache = window.placesService.getNearbyPlaces(currentLat, currentLng);
     this.renderPlacesList();
 
-    // 5. עדכון סיכות מקומות במפה
-    window.mapService.renderNearbyMarkers(this.placesCache);
+    // 5. סימון מקומות במפה
+    if (window.mapService) {
+      window.mapService.renderNearbyMarkers(this.placesCache);
+    }
 
     // 6. עדכון באנר האטרקציה הקרובה
     this.updateNearestHeroBanner(currentLat, currentLng);
@@ -354,20 +409,117 @@ class App {
     // 7. עדכון סרגל בחירת אטרקציה בסביבה
     await this.renderAttractionPicker();
 
-    // 8. משיכת מקומות חיים בסביבה ברקע
+    // 8. משיכת נתונים חיים נוספים ברקע מ-OSM
     if (window.placesService && window.placesService.fetchLivePlaces) {
       window.placesService.fetchLivePlaces(currentLat, currentLng).then(live => {
         if (live && live.length > 0) {
           this.placesCache = window.placesService.getNearbyPlaces(currentLat, currentLng);
           this.renderPlacesList();
-          window.mapService.renderNearbyMarkers(this.placesCache);
+          if (window.mapService) {
+            window.mapService.renderNearbyMarkers(this.placesCache);
+          }
         }
       });
     }
   }
 
+  updateHotelDistanceWidget(folder, userLat, userLng) {
+    const currency = folder.city.includes('ישראל') ? '₪' : '€';
+    const trip = window.hotelDistanceCalculator.calculateTrip(
+      userLat,
+      userLng,
+      folder.hotelLat,
+      folder.hotelLng,
+      currency
+    );
+
+    const nameEl = document.getElementById('hotelNameDisplay');
+    const addrEl = document.getElementById('hotelAddressDisplay');
+    const distEl = document.getElementById('hotelDirectDistance');
+
+    if (nameEl) nameEl.textContent = folder.hotelName;
+    if (addrEl) addrEl.textContent = folder.hotelAddress || 'כתובת שמורה';
+    if (distEl) distEl.textContent = trip.formattedDistance;
+
+    // הליכה
+    const walkTime = document.getElementById('walkTimeDisplay');
+    const walkSteps = document.getElementById('walkStepsDisplay');
+    if (walkTime) walkTime.textContent = trip.walk.formattedTime;
+    if (walkSteps) walkSteps.textContent = trip.walk.formattedSteps;
+
+    // תחב"צ
+    const transitTime = document.getElementById('transitTimeDisplay');
+    const transitTip = document.getElementById('transitTipDisplay');
+    if (transitTime) transitTime.textContent = trip.transit.formattedTime;
+    if (transitTip) transitTip.textContent = trip.transit.tip;
+
+    // רכב / מונית
+    const driveTime = document.getElementById('driveTimeDisplay');
+    const driveCost = document.getElementById('driveCostDisplay');
+    if (driveTime) driveTime.textContent = trip.drive.formattedTime;
+    if (driveCost) driveCost.textContent = trip.drive.estimatedCost;
+
+    // התראה אם המלון רחוק מעל 100 ק"מ
+    const warningBox = document.getElementById('hotelFarWarning');
+    if (warningBox) {
+      warningBox.style.display = trip.directMeters > 100000 ? 'flex' : 'none';
+    }
+
+    // קישור ניווט
+    const navBtn = document.getElementById('btnNavigateToHotel');
+    if (navBtn) {
+      navBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${folder.hotelLat},${folder.hotelLng}`;
+    }
+  }
+
+  async updateWeatherWidget(lat, lng) {
+    const weather = await window.weatherService.fetchWeather(lat, lng);
+    const tempEl = document.getElementById('weatherTemp');
+    const condEl = document.getElementById('weatherCondition');
+    const iconEl = document.getElementById('weatherIcon');
+    const windEl = document.getElementById('weatherWind');
+    const humEl = document.getElementById('weatherHumidity');
+    const tipEl = document.getElementById('weatherTipText');
+
+    if (tempEl) tempEl.textContent = `${weather.temperature}°`;
+    if (condEl) condEl.textContent = weather.condition;
+    if (iconEl) iconEl.textContent = weather.icon;
+    if (windEl) windEl.textContent = `${weather.windSpeed} קמ״ש`;
+    if (humEl) humEl.textContent = `${weather.humidity}%`;
+    if (tipEl) tipEl.textContent = weather.tip;
+
+    const locEl = document.getElementById('weatherLocationName');
+    if (locEl) {
+      const active = window.foldersManager.getActiveFolder();
+      locEl.textContent = active ? active.city.split(',')[0] : 'בסביבה';
+    }
+  }
+
+  updateNearestHeroBanner(lat, lng) {
+    const spot = window.attractionModalManager.findNearestAttraction(lat, lng);
+    const titleEl = document.getElementById('heroAttractionTitle');
+    const subEl = document.getElementById('heroAttractionSubtitle');
+    const distEl = document.getElementById('heroDistancePill');
+    const statusEl = document.getElementById('heroOpenStatusPill');
+
+    if (spot) {
+      if (titleEl) titleEl.textContent = spot.name;
+      if (subEl) subEl.textContent = spot.subtitle || spot.city;
+      if (distEl) {
+        distEl.textContent = `📍 ${window.hotelDistanceCalculator.formatDistance(spot.distanceMeters || 0)} ממך`;
+      }
+
+      const deviceTime = window.attractionModalManager.getDeviceDateTime();
+      const status = window.attractionModalManager.checkOpenStatus(spot.schedule, deviceTime);
+      if (statusEl) {
+        statusEl.className = `hero-status-pill ${status.badgeClass}`;
+        statusEl.textContent = status.statusText;
+      }
+    }
+  }
+
   async renderAttractionPicker() {
-    const container = document.getElementById('nearbyAttractionsPickerContainer');
+    const container = document.getElementById('nearbySpotsPickerContainer');
     if (!container) return;
 
     const currentLat = window.locationService.currentLat;
@@ -377,23 +529,23 @@ class App {
     const deviceTime = window.attractionModalManager.getDeviceDateTime();
 
     if (!nearbyList || nearbyList.length === 0) {
-      container.innerHTML = '<p style="color: #94a3b8; font-size: 0.9rem; padding: 8px;">לא נמצאו אטרקציות נוספות באזור זה.</p>';
+      container.innerHTML = '<p style="color: #94a3b8; font-size: 0.85rem; padding: 6px;">לא נמצאו אטרקציות נוספות ברדיוס 15 ק"מ.</p>';
       return;
     }
 
-    container.innerHTML = nearbyList.slice(0, 8).map(spot => {
+    container.innerHTML = nearbyList.slice(0, 6).map(spot => {
       const isSelected = selectedSpot && selectedSpot.id === spot.id;
-      const openStatus = window.attractionModalManager.checkOpenStatus(spot.schedule, deviceTime);
-      const distFormatted = window.hotelDistanceCalculator.formatDistance(spot.distanceMeters);
+      const status = window.attractionModalManager.checkOpenStatus(spot.schedule, deviceTime);
+      const dist = window.hotelDistanceCalculator.formatDistance(spot.distanceMeters);
 
       return `
         <div class="picker-spot-card ${isSelected ? 'selected-spot' : ''}" onclick="window.app.handleSelectNearbySpot('${spot.id}')">
           <div class="picker-spot-top">
             <span class="picker-spot-name">${spot.name}</span>
-            <span class="picker-spot-dist">📍 ${distFormatted}</span>
+            <span class="picker-spot-dist">📍 ${dist}</span>
           </div>
           <div class="picker-spot-footer">
-            <span class="picker-spot-status ${openStatus.badgeClass}">${openStatus.statusText.split(' ')[0]} ${openStatus.statusText.split(' ')[1] || ''}</span>
+            <span class="hero-status-pill ${status.badgeClass}">${status.statusText.split(' ')[0]} ${status.statusText.split(' ')[1] || ''}</span>
             <button class="btn-select-spot-action" type="button">
               ${isSelected ? 'אתה כאן ✓' : 'אני כאן! 📍'}
             </button>
@@ -408,120 +560,9 @@ class App {
     this.renderAttractionPicker();
   }
 
-  updateNearestHeroBanner(lat, lng) {
-    const spot = window.attractionModalManager.findNearestAttraction(lat, lng);
-    const heroTitle = document.getElementById('heroAttractionTitle');
-    const heroDistance = document.getElementById('heroAttractionDistance');
-    const heroStatus = document.getElementById('heroAttractionStatus');
-
-    if (spot) {
-      if (heroTitle) heroTitle.textContent = spot.name;
-      if (heroDistance) {
-        heroDistance.textContent = `📍 במרחק ${window.hotelDistanceCalculator.formatDistance(spot.distanceMeters)} ממך`;
-      }
-      
-      const deviceTime = window.attractionModalManager.getDeviceDateTime();
-      const openStatus = window.attractionModalManager.checkOpenStatus(spot.schedule, deviceTime);
-      if (heroStatus) {
-        heroStatus.textContent = openStatus.statusText;
-        heroStatus.className = `hero-status-pill ${openStatus.badgeClass}`;
-      }
-    }
-  }
-
-  updateHotelDistanceWidget(folder, userLat, userLng) {
-    const hotelInfo = window.hotelDistanceCalculator.calculateTrip(
-      userLat,
-      userLng,
-      folder.hotelLat,
-      folder.hotelLng,
-      folder.city.includes('ישראל') ? '₪' : '€'
-    );
-
-    // התראה אם המלון רשום בעיר מרוחקת (למשל נשאר בעיר אחרת)
-    const existingWarning = document.getElementById('hotelDistanceNotice');
-    const widgetCard = document.querySelector('.hotel-distance-widget');
-    if (hotelInfo.directMeters > 250000) {
-      if (!existingWarning && widgetCard) {
-        const notice = document.createElement('div');
-        notice.id = 'hotelDistanceNotice';
-        notice.style.cssText = 'background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.88rem; color: #fbbf24; line-height: 1.4;';
-        notice.innerHTML = `⚠️ <strong>שימו לב:</strong> המלון השמור (${folder.hotelName}) מרוחק מאוד ממיקומכם הנוכחי (${hotelInfo.formattedDistance}). <a href="#" onclick="window.app.openEditHotelModal(); return false;" style="color: #fff; text-decoration: underline; font-weight: 700;">לחצו כאן לעדכון כתובת המלון או לשימוש ב-GPS הנוכחי</a>.`;
-        widgetCard.prepend(notice);
-      }
-    } else if (existingWarning) {
-      existingWarning.remove();
-    }
-
-    // שם המלון והמרחק הכללי
-    const nameEl = document.getElementById('hotelWidgetName');
-    if (nameEl) nameEl.textContent = folder.hotelName;
-
-    const addressEl = document.getElementById('hotelWidgetAddress');
-    if (addressEl) addressEl.textContent = folder.hotelAddress || 'לא צוינה כתובת';
-
-    const distEl = document.getElementById('hotelWidgetTotalDist');
-    if (distEl) distEl.textContent = hotelInfo.formattedDistance;
-
-    // הליכה ברגל
-    const walkTimeEl = document.getElementById('hotelWalkTime');
-    if (walkTimeEl) walkTimeEl.textContent = `${hotelInfo.walking.minutes} דק׳`;
-
-    const walkStepsEl = document.getElementById('hotelWalkSteps');
-    if (walkStepsEl) walkStepsEl.textContent = `${hotelInfo.walking.steps} צעדים`;
-
-    const walkBtn = document.getElementById('hotelWalkNavBtn');
-    if (walkBtn) walkBtn.href = hotelInfo.walking.mapsUrl;
-
-    // תחבורה ציבורית
-    const transitTimeEl = document.getElementById('hotelTransitTime');
-    if (transitTimeEl) transitTimeEl.textContent = `${hotelInfo.transit.minutes} דק׳`;
-
-    const transitAdvEl = document.getElementById('hotelTransitAdvice');
-    if (transitAdvEl) transitAdvEl.textContent = hotelInfo.transit.advice;
-
-    const transitBtn = document.getElementById('hotelTransitNavBtn');
-    if (transitBtn) transitBtn.href = hotelInfo.transit.mapsUrl;
-
-    // רכב / מונית
-    const driveTimeEl = document.getElementById('hotelDriveTime');
-    if (driveTimeEl) driveTimeEl.textContent = `${hotelInfo.driving.minutes} דק׳`;
-
-    const driveCostEl = document.getElementById('hotelDriveCost');
-    if (driveCostEl) driveCostEl.textContent = hotelInfo.driving.taxiCost;
-
-    const driveBtn = document.getElementById('hotelDriveNavBtn');
-    if (driveBtn) driveBtn.href = hotelInfo.driving.mapsUrl;
-
-    // כפתור חזרה מהירה למלון
-    const directNavBtn = document.getElementById('hotelDirectNavigateBtn');
-    if (directNavBtn) directNavBtn.href = hotelInfo.walking.mapsUrl;
-  }
-
-  async updateWeatherWidget(lat, lng) {
-    const weather = await window.weatherService.fetchWeather(lat, lng);
-    
-    const tempEl = document.getElementById('weatherTemp');
-    if (tempEl) tempEl.textContent = `${weather.temperature}°C`;
-
-    const iconEl = document.getElementById('weatherIcon');
-    if (iconEl) iconEl.textContent = weather.icon;
-
-    const condEl = document.getElementById('weatherCondition');
-    if (condEl) condEl.textContent = weather.conditionText;
-
-    const tipEl = document.getElementById('weatherTipText');
-    if (tipEl) tipEl.textContent = weather.tip;
-
-    const windEl = document.getElementById('weatherWind');
-    if (windEl) windEl.textContent = `💨 ${weather.windSpeed} קמ״ש`;
-
-    const humEl = document.getElementById('weatherHumidity');
-    if (humEl) humEl.textContent = `💧 ${weather.humidity}% לחות`;
-  }
-
   renderPlacesList() {
-    const container = document.getElementById('placesListContainer');
+    const container = document.getElementById('placesGrid');
+    const countText = document.getElementById('placesCountText');
     if (!container) return;
 
     const filtered = window.placesService.filterPlaces(
@@ -530,15 +571,16 @@ class App {
       window.placesService.searchQuery
     );
 
-    const countBadge = document.getElementById('placesCountBadge');
-    if (countBadge) countBadge.textContent = `${filtered.length} מקומות`;
+    if (countText) {
+      countText.textContent = `נמצאו ${filtered.length} מקומות בסביבה הקרובה`;
+    }
 
     if (filtered.length === 0) {
       container.innerHTML = `
-        <div class="empty-places-state">
-          <div class="empty-icon">🔍</div>
-          <h4>לא נמצאו תוצאות לסינון זה</h4>
-          <p>נסו לבחור קטגוריה אחרת או לנקות את מונח החיפוש.</p>
+        <div style="grid-column: 1/-1; text-align: center; padding: 30px; background: rgba(30, 41, 59, 0.4); border-radius: 14px;">
+          <div style="font-size: 2.2rem; margin-bottom: 8px;">🔍</div>
+          <h4 style="color: white; margin-bottom: 4px;">לא נמצאו תוצאות לסינון זה</h4>
+          <p style="color: #94a3b8; font-size: 0.85rem;">נסו לבחור קטגוריה אחרת או לנקות את מונח החיפוש.</p>
         </div>
       `;
       return;
@@ -547,82 +589,50 @@ class App {
     container.innerHTML = filtered.map(p => window.placesService.renderPlaceCard(p)).join('');
   }
 
-  renderFolders() {
-    const grid = document.getElementById('foldersGrid');
-    if (!grid) return;
+  // מודל תיקייה
+  openFolderModal(folderId = null) {
+    const modal = document.getElementById('modalFolder');
+    const formTitle = document.getElementById('folderModalTitle');
+    const formId = document.getElementById('formFolderId');
 
-    const folders = window.foldersManager.folders;
-    const activeId = window.foldersManager.activeFolderId;
+    if (!modal) return;
 
-    grid.innerHTML = folders
-      .map(folder => {
-        const isActive = folder.id === activeId;
-        return `
-          <div class="folder-card ${isActive ? 'active-trip' : ''}" style="border-top: 5px solid ${folder.coverGradient ? '#3b82f6' : '#f59e0b'};">
-            <div class="folder-header-bar">
-              <span class="folder-emoji">${folder.icon || '✈️'}</span>
-              ${isActive ? '<span class="active-badge">פעיל כעת ✨</span>' : ''}
-            </div>
-
-            <div class="folder-body">
-              <h3 class="folder-title">${folder.name}</h3>
-              <p class="folder-city">📍 ${folder.city}</p>
-
-              <div class="folder-hotel-preview">
-                <div class="hotel-title-row">
-                  <span class="hotel-label">🏨 מלון שמור:</span>
-                  <strong class="hotel-name">${folder.hotelName}</strong>
-                </div>
-                ${folder.hotelAddress ? `<div class="hotel-address-line">${folder.hotelAddress}</div>` : ''}
-                ${folder.hotelNotes ? `<div class="hotel-notes-preview">💬 ${folder.hotelNotes}</div>` : ''}
-              </div>
-            </div>
-
-            <div class="folder-card-footer">
-              <button class="btn-select-folder" onclick="window.app.handleSelectFolder('${folder.id}')">
-                ${isActive ? '👉 פתח טיול' : 'בחר טיול זה'}
-              </button>
-              <div class="folder-actions-secondary">
-                <button class="btn-icon-action" onclick="window.app.openEditHotelModal('${folder.id}')" title="ערוך פרטי מלון">✏️ מלון</button>
-                <button class="btn-icon-action delete" onclick="window.app.handleDeleteFolder('${folder.id}')" title="מחק תיקייה">🗑️</button>
-              </div>
-            </div>
-          </div>
-        `;
-      })
-      .join('');
-  }
-
-  handleSelectFolder(id) {
-    const folder = window.foldersManager.folders.find(f => f.id === id);
-    if (folder) {
-      this.applyActiveFolder(folder);
-      this.switchView('explore');
-    }
-  }
-
-  handleDeleteFolder(id) {
-    if (confirm('האם למחוק תיקיית טיול זו?')) {
-      const success = window.foldersManager.deleteFolder(id);
-      if (success) {
-        this.renderFolders();
+    if (folderId) {
+      const folder = window.foldersManager.folders.find(f => f.id === folderId);
+      if (folder) {
+        if (formTitle) formTitle.textContent = 'עריכת פרטי מלון ותיקייה';
+        if (formId) formId.value = folder.id;
+        document.getElementById('formTripName').value = folder.name;
+        document.getElementById('formTripCity').value = folder.city;
+        document.getElementById('formHotelName').value = folder.hotelName;
+        document.getElementById('formHotelAddress').value = folder.hotelAddress || '';
+        document.getElementById('formHotelLat').value = folder.hotelLat || '';
+        document.getElementById('formHotelLng').value = folder.hotelLng || '';
+        document.getElementById('formHotelNotes').value = folder.hotelNotes || '';
+        document.getElementById('formTripIcon').value = folder.icon || '✈️';
       }
+    } else {
+      if (formTitle) formTitle.textContent = 'יצירת תיקיית טיול חדשה';
+      if (formId) formId.value = '';
+      document.getElementById('formTripName').value = '';
+      document.getElementById('formTripCity').value = '';
+      document.getElementById('formHotelName').value = '';
+      document.getElementById('formHotelAddress').value = '';
+      document.getElementById('formHotelLat').value = '';
+      document.getElementById('formHotelLng').value = '';
+      document.getElementById('formHotelNotes').value = '';
+      document.getElementById('formTripIcon').value = '🍇';
     }
-  }
 
-  openFolderModal() {
-    const modal = document.getElementById('folderCreateModal');
-    if (modal) {
-      modal.classList.add('active');
-      document.body.classList.add('modal-open');
-    }
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
   }
 
   closeFolderModal() {
-    const modal = document.getElementById('folderCreateModal');
+    const modal = document.getElementById('modalFolder');
     if (modal) {
       modal.classList.remove('active');
-      document.body.classList.remove('modal-open');
+      document.body.style.overflow = '';
     }
   }
 
@@ -635,49 +645,48 @@ class App {
       if (data && data.length > 0) {
         return {
           lat: parseFloat(data[0].lat),
-          lng: parseFloat(data[0].lon),
-          displayName: data[0].display_name
+          lng: parseFloat(data[0].lon)
         };
       }
-    } catch (err) {
-      console.warn('Geocoding query failed:', err);
-    }
+    } catch (_) {}
     return null;
   }
 
   async handleSaveNewFolder() {
-    const name = document.getElementById('newTripName').value.trim();
-    const city = document.getElementById('newTripCity').value.trim();
-    const hotelName = document.getElementById('newTripHotel').value.trim();
-    const hotelAddress = document.getElementById('newTripHotelAddress').value.trim();
-    const hotelNotes = document.getElementById('newTripHotelNotes').value.trim();
-    const icon = document.getElementById('newTripIcon').value || '✈️';
+    const folderId = document.getElementById('formFolderId').value;
+    const name = document.getElementById('formTripName').value.trim();
+    const city = document.getElementById('formTripCity').value.trim();
+    const hotelName = document.getElementById('formHotelName').value.trim();
+    const hotelAddress = document.getElementById('formHotelAddress').value.trim();
+    const hotelNotes = document.getElementById('formHotelNotes').value.trim();
+    const icon = document.getElementById('formTripIcon').value || '✈️';
+    let lat = parseFloat(document.getElementById('formHotelLat').value);
+    let lng = parseFloat(document.getElementById('formHotelLng').value);
 
     if (!name || !city || !hotelName) {
       alert('נא למלא שם טיול, עיר ושם מלון.');
       return;
     }
 
-    const submitBtn = document.getElementById('btnSubmitNewFolder');
+    const submitBtn = document.getElementById('btnSubmitFolder');
     if (submitBtn) {
       submitBtn.disabled = true;
       submitBtn.textContent = '⏳ שומר ומאתר מיקום במפה...';
     }
 
-    let lat = null;
-    let lng = null;
     let hotspotId = null;
 
-    // 1. נסה לאתר את הכתובת המדויקת של המלון ברשת (Nominatim)
-    const fullHotelQuery = hotelAddress ? `${hotelAddress}, ${city}` : `${hotelName}, ${city}`;
-    const hotelGeo = await this.geocodeAddress(fullHotelQuery);
-    if (hotelGeo) {
-      lat = hotelGeo.lat;
-      lng = hotelGeo.lng;
+    // 1. איתור קואורדינטות ב-Nominatim אם לא הוזנו ידנית או באמצעות GPS
+    if (isNaN(lat) || isNaN(lng)) {
+      const hotelQuery = hotelAddress ? `${hotelAddress}, ${city}` : `${hotelName}, ${city}`;
+      const hotelGeo = await this.geocodeAddress(hotelQuery);
+      if (hotelGeo) {
+        lat = hotelGeo.lat;
+        lng = hotelGeo.lng;
+      }
     }
 
-    // 2. אם לא נמצא, נסה לאתר לפי שם העיר
-    if (!lat || !lng) {
+    if (isNaN(lat) || isNaN(lng)) {
       const cityGeo = await this.geocodeAddress(city);
       if (cityGeo) {
         lat = cityGeo.lat;
@@ -685,48 +694,58 @@ class App {
       }
     }
 
-    // 3. בדיקה בטבלת ערים מוכרות (ירושלים, תל אביב, חיפה, אילת וכו')
-    if (!lat || !lng) {
-      const cityPresets = window.NaftalbergData.CITY_COORDINATES || {};
-      for (const [cityName, coords] of Object.entries(cityPresets)) {
+    // 2. בדיקה בטבלת ערים מוכרות (זכרון יעקב, ירושלים, תל אביב וכו')
+    if (window.NaftalbergData && window.NaftalbergData.CITY_COORDINATES) {
+      for (const [cityName, coords] of Object.entries(window.NaftalbergData.CITY_COORDINATES)) {
         if (city.includes(cityName) || cityName.includes(city)) {
-          lat = coords.lat;
-          lng = coords.lng;
+          if (isNaN(lat) || isNaN(lng)) {
+            lat = coords.lat;
+            lng = coords.lng;
+          }
           hotspotId = coords.hotspotId;
           break;
         }
       }
     }
 
-    // 4. ברירת מחדל: המיקום הנוכחי של המשתמש (GPS) או ישראל, לא רומא!
-    if (!lat || !lng) {
-      lat = window.locationService ? window.locationService.currentLat : 32.0853;
-      lng = window.locationService ? window.locationService.currentLng : 34.7818;
+    // 3. ברירת מחדל: מיקום נוכחי
+    if (isNaN(lat) || isNaN(lng)) {
+      lat = window.locationService ? window.locationService.currentLat : 32.5714;
+      lng = window.locationService ? window.locationService.currentLng : 34.9530;
     }
 
-    // 5. בדיקה אם העיר מתאימה לאחת מנקודות הציון המוכרות (זכרון יעקב, ירושלים, תל אביב וכו')
-    if (!hotspotId && window.NaftalbergData && window.NaftalbergData.CITY_COORDINATES) {
-      for (const [cityName, coords] of Object.entries(window.NaftalbergData.CITY_COORDINATES)) {
-        if (city.includes(cityName) || cityName.includes(city)) {
-          if (coords.hotspotId) {
-            hotspotId = coords.hotspotId;
-            break;
-          }
-        }
+    if (folderId) {
+      // עדכון תיקייה קיימת
+      window.foldersManager.updateFolder(folderId, {
+        name,
+        city,
+        hotelName,
+        hotelAddress,
+        hotelLat: lat,
+        hotelLng: lng,
+        hotelNotes,
+        icon,
+        currentHotspotId: hotspotId
+      });
+      const active = window.foldersManager.getActiveFolder();
+      if (active && active.id === folderId) {
+        this.applyActiveFolder(active);
       }
+    } else {
+      // יצירת תיקייה חדשה
+      const newFolder = window.foldersManager.createFolder({
+        name,
+        city,
+        hotelName,
+        hotelAddress,
+        hotelLat: lat,
+        hotelLng: lng,
+        hotelNotes,
+        icon,
+        currentHotspotId: hotspotId
+      });
+      this.applyActiveFolder(newFolder);
     }
-
-    const newFolder = window.foldersManager.createFolder({
-      name,
-      city,
-      hotelName,
-      hotelAddress,
-      hotelLat: lat,
-      hotelLng: lng,
-      hotelNotes,
-      icon,
-      currentHotspotId: hotspotId
-    });
 
     if (submitBtn) {
       submitBtn.disabled = false;
@@ -735,90 +754,12 @@ class App {
 
     this.closeFolderModal();
     this.renderFolders();
-    this.applyActiveFolder(newFolder);
     this.switchView('explore');
-  }
-
-  openEditHotelModal(folderId = null) {
-    const id = folderId || window.foldersManager.activeFolderId;
-    const folder = window.foldersManager.folders.find(f => f.id === id);
-    if (!folder) return;
-
-    document.getElementById('editHotelFolderId').value = folder.id;
-    document.getElementById('editHotelName').value = folder.hotelName;
-    document.getElementById('editHotelAddress').value = folder.hotelAddress || '';
-    document.getElementById('editHotelLat').value = folder.hotelLat || '';
-    document.getElementById('editHotelLng').value = folder.hotelLng || '';
-    document.getElementById('editHotelNotes').value = folder.hotelNotes || '';
-
-    const modal = document.getElementById('hotelEditModal');
-    if (modal) {
-      modal.classList.add('active');
-      document.body.classList.add('modal-open');
-    }
-  }
-
-  closeEditHotelModal() {
-    const modal = document.getElementById('hotelEditModal');
-    if (modal) {
-      modal.classList.remove('active');
-      document.body.classList.remove('modal-open');
-    }
-  }
-
-  async handleSaveHotelDetails() {
-    const id = document.getElementById('editHotelFolderId').value;
-    const hotelName = document.getElementById('editHotelName').value.trim();
-    const hotelAddress = document.getElementById('editHotelAddress').value.trim();
-    let hotelLat = parseFloat(document.getElementById('editHotelLat').value);
-    let hotelLng = parseFloat(document.getElementById('editHotelLng').value);
-    const hotelNotes = document.getElementById('editHotelNotes').value.trim();
-
-    if (!hotelName) {
-      alert('נא להזין שם מלון.');
-      return;
-    }
-
-    const folder = window.foldersManager.folders.find(f => f.id === id);
-    const city = folder ? folder.city : '';
-
-    // אם לא הוזנו קואורדינטות ידניות, נסה לאתר אוטומטית לפי כתובת
-    if (isNaN(hotelLat) || isNaN(hotelLng) || (hotelAddress && hotelAddress !== folder?.hotelAddress)) {
-      const fullQuery = hotelAddress ? `${hotelAddress}, ${city}` : `${hotelName}, ${city}`;
-      const geo = await this.geocodeAddress(fullQuery);
-      if (geo) {
-        hotelLat = geo.lat;
-        hotelLng = geo.lng;
-      }
-    }
-
-    // fallback: השתמש במיקום הנוכחי או בעיר
-    if (isNaN(hotelLat) || isNaN(hotelLng)) {
-      hotelLat = window.locationService ? window.locationService.currentLat : 32.0853;
-      hotelLng = window.locationService ? window.locationService.currentLng : 34.7818;
-    }
-
-    window.foldersManager.updateFolder(id, {
-      hotelName,
-      hotelAddress,
-      hotelLat,
-      hotelLng,
-      hotelNotes
-    });
-
-    this.closeEditHotelModal();
-    this.renderFolders();
-
-    if (window.foldersManager.activeFolderId === id) {
-      const active = window.foldersManager.getActiveFolder();
-      this.applyActiveFolder(active);
-    }
   }
 }
 
-window.app = new App();
-
-// הפעלה כשהדף נטען
+// הפעלה כשה-DOM מוכן
 document.addEventListener('DOMContentLoaded', () => {
+  window.app = new NaftalbergApp();
   window.app.init();
 });

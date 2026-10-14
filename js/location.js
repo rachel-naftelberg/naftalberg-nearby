@@ -1,12 +1,12 @@
 // ==========================================================================
-// מנוע מיקום (Location Service) - GPS חי וסימולטור נקודות ציון
+// מנוע מיקום (Location Service) - GPS חי, מעקב ומיקום נבחר
 // ==========================================================================
 
 class LocationService {
   constructor() {
-    this.currentLat = 41.8902;
-    this.currentLng = 12.4922;
-    this.locationName = 'הקולוסיאום, רומא';
+    this.currentLat = 32.5714;
+    this.currentLng = 34.9530;
+    this.locationName = 'מדרחוב המייסדים, זכרון יעקב';
     this.isLiveGPS = false;
     this.listeners = [];
     this.watchId = null;
@@ -69,7 +69,7 @@ class LocationService {
           let msg = 'לא ניתן לקרוא מיקום GPS.';
           switch (error.code) {
             case error.PERMISSION_DENIED:
-              msg = 'הרשאת המיקום נדחתה בהגדרות הדפדפן. ניתן להשתמש בסימולטור הנקודות.';
+              msg = 'הרשאת המיקום נדחתה בהגדרות הדפדפן. ניתן לבחור נקודה או להשתמש בחיפוש.';
               break;
             case error.POSITION_UNAVAILABLE:
               msg = 'אות ה-GPS אינו זמין כרגע.';

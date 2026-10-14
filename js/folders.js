@@ -1,5 +1,6 @@
 // ==========================================================================
-// ניהול תיקיות טיולים ומלונות (Trip Folders & Hotel Management)
+// ניהול תיקיות טיולים ומלונות (Folders & Hotels Manager)
+// מסך כניסה ייעודי לכל טיול / עיר, שמירת פרטי מלון ב-localStorage
 // ==========================================================================
 
 const STORAGE_KEY_FOLDERS = 'naftalberg_trip_folders';
@@ -17,6 +18,7 @@ class FoldersManager {
       if (stored) {
         let parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
+          // לוודא שתיקיות ברירת המחדל (כמו זכרון יעקב וירושלים) קיימות
           const defaults = window.NaftalbergData ? window.NaftalbergData.DEFAULT_FOLDERS : [];
           let changed = false;
           defaults.forEach(def => {
@@ -34,7 +36,6 @@ class FoldersManager {
     } catch (e) {
       console.error('Error loading folders from localStorage:', e);
     }
-    // ברירת מחדל אם אין עדיין נתונים
     const defaults = window.NaftalbergData ? window.NaftalbergData.DEFAULT_FOLDERS : [];
     this.saveFolders(defaults);
     return defaults;
@@ -77,8 +78,8 @@ class FoldersManager {
 
   createFolder(folderData) {
     const id = 'folder-' + Date.now();
-    const fallbackLat = window.locationService ? window.locationService.currentLat : 32.0853;
-    const fallbackLng = window.locationService ? window.locationService.currentLng : 34.7818;
+    const fallbackLat = window.locationService ? window.locationService.currentLat : 32.5714;
+    const fallbackLng = window.locationService ? window.locationService.currentLng : 34.9530;
 
     const lat = !isNaN(parseFloat(folderData.hotelLat)) ? parseFloat(folderData.hotelLat) : fallbackLat;
     const lng = !isNaN(parseFloat(folderData.hotelLng)) ? parseFloat(folderData.hotelLng) : fallbackLng;
@@ -92,14 +93,13 @@ class FoldersManager {
       hotelLat: lat,
       hotelLng: lng,
       hotelNotes: folderData.hotelNotes || '',
-      coverGradient: folderData.coverGradient || 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
       icon: folderData.icon || '✈️',
       centerLat: lat,
       centerLng: lng,
       currentHotspotId: folderData.currentHotspotId || null,
       createdAt: new Date().toISOString()
     };
-    this.folders.push(newFolder);
+    this.folders.unshift(newFolder);
     this.saveFolders();
     this.setActiveFolderId(id);
     return newFolder;

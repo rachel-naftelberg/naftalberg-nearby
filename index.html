@@ -2,539 +2,598 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>טיולי נפתלברג - מה בסביבה | מיקום, מזג אוויר וגילוי אטרקציות</title>
-  <meta name="description" content="אפליקציית WEB מתקדמת למטיילים: זיהוי מיקום חי, מזג אוויר בזמן אמת, אטרקציות, סיפורים מרתקים, שעות פתיחה, מופעים, מסעדות, בתי קפה, שירותים ציבוריים ומרחק מהמלון.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>טיולי נפתלברג - מה בסביבה 🌍</title>
+  
+  <!-- Apple Touch & PWA Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="מה בסביבה">
+  <meta name="theme-color" content="#0f172a">
 
-  <!-- Google Fonts: Outfit, Rubik, Heebo -->
+  <!-- Google Fonts: Heebo & Rubik -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <!-- Leaflet CSS for Interactive Map -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 
-  <!-- Custom Stylesheet -->
+  <!-- Custom CSS -->
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body class="theme-travel">
 
-  <!-- ==========================================================================
-       שורת ניווט עליונה (Top App Navigation Bar)
-       ========================================================================== -->
-  <header class="top-nav">
-    <div class="top-nav-inner">
-      <div class="brand-section" onclick="window.app.switchView('explore')">
+  <!-- ========================================================
+       TOP HEADER / APP BAR
+       ======================================================== -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand-group">
         <div class="brand-logo-badge">🧭</div>
-        <div class="brand-titles">
-          <h1>טיולי נפתלברג</h1>
-          <span class="brand-subtitle">מה בסביבה • מדריך חכם</span>
+        <div class="brand-text">
+          <h1 class="brand-title">טיולי נפתלברג</h1>
+          <span class="brand-subtitle">מה בסביבה • מדריך חכם למטייל</span>
         </div>
       </div>
 
-      <div class="nav-center-info">
-        <div class="live-time-chip" title="שעון המכשיר המקומי">
+      <div class="header-actions">
+        <!-- Live iPhone Device Clock Pill -->
+        <div class="device-clock-pill" id="deviceClockBadge" title="שעון ותאריך המכשיר שלך">
           <span class="clock-icon">🕒</span>
-          <span class="live-device-clock-text">טוען שעה...</span>
+          <span class="clock-display" id="headerClockText">טוען...</span>
         </div>
-      </div>
 
-      <nav class="nav-actions">
-        <button class="btn-nav" data-view-target="folders" title="תיקיות טיולים ומלונות">
-          <span>📂</span>
-          <span>תיקיות טיול</span>
+        <!-- Quick Switch Folders Button -->
+        <button class="btn-header-folder" id="btnHeaderFolders" title="תיקיות טיולים ומלונות">
+          <span class="folder-icon">📂</span>
+          <span class="folder-label">התיקיות שלי</span>
         </button>
-        <button class="btn-nav primary" data-view-target="explore" title="מסך מה בסביבה">
-          <span>📍</span>
-          <span>מה בסביבה</span>
-        </button>
-      </nav>
+      </div>
     </div>
   </header>
 
-  <!-- ==========================================================================
-       מסך 1: ניהול תיקיות טיולים ומלונות (Folders View)
-       ========================================================================== -->
-  <main id="viewFolders" class="view-screen">
-    <div class="folders-hero">
-      <div class="folders-title-wrap">
-        <h2>תיקיות הטיולים שלי 📂</h2>
-        <p>צרו תיקייה נפרדת לכל עיר או חופשה, הגדירו את פרטי המלון וצאו לדרך בקלות.</p>
-      </div>
-      <button class="btn-nav primary" id="btnOpenCreateFolder">
-        <span>➕</span>
-        <span>יצירת תיקיית טיול חדשה</span>
-      </button>
-    </div>
+  <!-- ========================================================
+       MAIN APP CONTAINER
+       ======================================================== -->
+  <main class="app-main">
 
-    <!-- גריד תיקיות -->
-    <div id="foldersGrid" class="folders-grid">
-      <!-- ממולא דינמית דרך app.js -->
-    </div>
+    <!-- ======================================================
+         SCREEN 1: FOLDERS VIEW (מסך תיקיות טיולים ומלונות)
+         ברירת מחדל בכניסה לאפליקציה!
+         ====================================================== -->
+    <section id="viewFolders" class="app-view active">
+      <div class="view-container">
+        
+        <!-- Folders Hero Banner -->
+        <div class="folders-intro-hero">
+          <div class="intro-content">
+            <span class="intro-tag">✨ ברוכים הבאים לטיולי נפתלברג</span>
+            <h2 class="intro-title">לאן מטיילים הפעם?</h2>
+            <p class="intro-desc">בחרו תיקיית טיול או צרו תיקייה חדשה עם פרטי המלון שלכם. האפליקציה תזהה את מיקומכם, תחשב מרחקים מהמלון ותציע אטרקציות ומקומות בסביבה.</p>
+          </div>
+          <button class="btn-create-folder-hero" id="btnOpenCreateFolder">
+            <span>➕</span>
+            <span>צור תיקיית טיול חדשה</span>
+          </button>
+        </div>
+
+        <!-- Folders Grid -->
+        <div class="folders-section-header">
+          <h3 class="section-title">📂 התיקיות והיעדים שלך</h3>
+          <span class="folders-count-badge" id="foldersCountBadge">0 תיקיות</span>
+        </div>
+
+        <div class="folders-grid" id="foldersGrid">
+          <!-- Dynamically Rendered by FoldersManager -->
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ======================================================
+         SCREEN 2: EXPLORE VIEW (מה בסביבה - אטרקציות, מקומות, מזג אוויר ומרחק מהמלון)
+         ====================================================== -->
+    <section id="viewExplore" class="app-view">
+      <div class="view-container">
+
+        <!-- Active Folder Bar & Location Control -->
+        <div class="explore-top-bar">
+          <div class="active-folder-meta" id="activeFolderMetaCard">
+            <span class="folder-badge-emoji" id="activeFolderEmoji">🍇</span>
+            <div class="folder-badge-details">
+              <span class="folder-badge-sub">טיול פעיל כעת:</span>
+              <strong class="folder-badge-name" id="activeFolderName">סופ״ש בזכרון יעקב</strong>
+              <span class="folder-badge-city" id="activeFolderCity">📍 זכרון יעקב, ישראל</span>
+            </div>
+          </div>
+
+          <div class="location-toolbar">
+            <!-- Simulated Location Picker / Preset Hotspots -->
+            <div class="location-select-wrap">
+              <label for="hotspotSelect" class="sr-only">בחר נקודת ציון</label>
+              <select id="hotspotSelect" class="hotspot-select">
+                <optgroup label="זכרון יעקב והכרמל, ישראל">
+                  <option value="zy-meyasdim" selected>🍇 מדרחוב המייסדים ומושבת הראשונים</option>
+                  <option value="zy-ramat-hanadiv">🌸 גני הנדיב ופארק הטבע</option>
+                  <option value="zy-carmel-winery">🍷 יקבי כרמל ומרכז תרבות היין</option>
+                </optgroup>
+                <optgroup label="ירושלים, ישראל">
+                  <option value="jlm-kotel">🕍 הכותל המערבי והעיר העתיקה</option>
+                </optgroup>
+                <optgroup label="תל אביב, ישראל">
+                  <option value="tlv-beach">🌊 טיילת וחוף גורדון</option>
+                  <option value="tlv-carmel">🍉 שוק הכרמל ונחלת בנימין</option>
+                </optgroup>
+                <optgroup label="רומא, איטליה">
+                  <option value="rome-colosseum">🏟️ הקולוסיאום (Colosseum)</option>
+                  <option value="rome-trevi">⛲ מזרקת טרווי (Trevi Fountain)</option>
+                </optgroup>
+                <optgroup label="פריז, צרפת">
+                  <option value="paris-eiffel">🗼 מגדל אייפל (Eiffel Tower)</option>
+                </optgroup>
+                <optgroup label="ברצלונה, ספרד">
+                  <option value="bcn-sagrada">🎨 סגרדה פמיליה (Sagrada Família)</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <!-- Live GPS Trigger Button -->
+            <button class="btn-gps-trigger" id="btnLiveGps">
+              <span class="gps-pulse-dot"></span>
+              <span>📡 קרא GPS מהמכשיר</span>
+            </button>
+
+            <!-- Switch Trip Button -->
+            <button class="btn-switch-trip-pill" id="btnSwitchTrip">
+              <span>📂 החלף טיול</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ==================================================
+             TOP DASHBOARD ROW: WEATHER & HOTEL DISTANCE
+             ================================================== -->
+        <div class="dashboard-row">
+
+          <!-- 1. LIVE WEATHER WIDGET -->
+          <div class="dashboard-card weather-card" id="weatherWidget">
+            <div class="card-glass-header">
+              <div class="header-title-group">
+                <span class="card-icon">🌤️</span>
+                <span class="card-caption">מזג אוויר בזמן אמת</span>
+              </div>
+              <span class="weather-location-pill" id="weatherLocationName">זכרון יעקב</span>
+            </div>
+
+            <div class="weather-body">
+              <div class="temp-display">
+                <span class="weather-big-icon" id="weatherIcon">☀️</span>
+                <div class="temp-numbers">
+                  <span class="temp-current" id="weatherTemp">24°</span>
+                  <span class="temp-condition" id="weatherCondition">נאה ובהיר</span>
+                </div>
+              </div>
+
+              <div class="weather-stats-grid">
+                <div class="w-stat">
+                  <span class="stat-icon">💨</span>
+                  <span class="stat-val" id="weatherWind">12 קמ״ש</span>
+                </div>
+                <div class="w-stat">
+                  <span class="stat-icon">💧</span>
+                  <span class="stat-val" id="weatherHumidity">55%</span>
+                </div>
+              </div>
+
+              <div class="weather-tip-box" id="weatherTip">
+                <span class="tip-bulb">💡</span>
+                <span class="tip-text" id="weatherTipText">מזג אוויר מושלם להליכה ושיטוט רגלי בסביבה!</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. HOTEL DISTANCE TRACKER WIDGET -->
+          <div class="dashboard-card hotel-card" id="hotelWidget">
+            <div class="card-glass-header">
+              <div class="header-title-group">
+                <span class="card-icon">🏨</span>
+                <span class="card-caption">מרחק מהמלון שלך</span>
+              </div>
+              <button class="btn-edit-hotel-mini" id="btnOpenEditHotel" title="עדכן פרטי מלון">✏️ ערוך מלון</button>
+            </div>
+
+            <div class="hotel-body">
+              <div class="hotel-main-info">
+                <div class="hotel-names-wrap">
+                  <h4 class="hotel-name" id="hotelNameDisplay">מלון אלמא זכרון יעקב</h4>
+                  <p class="hotel-address" id="hotelAddressDisplay">רחוב יאיר 1, זכרון יעקב</p>
+                </div>
+                <div class="hotel-total-dist">
+                  <span class="dist-num" id="hotelDirectDistance">--</span>
+                  <span class="dist-lbl">קו אווירי</span>
+                </div>
+              </div>
+
+              <!-- Distance Warning if hotel is in another city -->
+              <div id="hotelFarWarning" class="hotel-far-alert" style="display: none;">
+                <span>⚠️ <strong>שימו לב:</strong> המלון השמור מרוחק מאוד מהאזור הנוכחי.</span>
+                <button type="button" class="btn-fix-hotel-now" id="btnFixHotelGps">קבע מיקום מלון כאן</button>
+              </div>
+
+              <!-- 3 Modes of Distance / Transport -->
+              <div class="travel-modes-grid">
+                <!-- Walking -->
+                <div class="mode-item walking">
+                  <div class="mode-header">
+                    <span class="mode-icon">🚶</span>
+                    <span class="mode-title">ברגל</span>
+                  </div>
+                  <strong class="mode-time" id="walkTimeDisplay">-- דק׳</strong>
+                  <span class="mode-extra" id="walkStepsDisplay">-- צעדים</span>
+                </div>
+
+                <!-- Transit -->
+                <div class="mode-item transit">
+                  <div class="mode-header">
+                    <span class="mode-icon">🚌</span>
+                    <span class="mode-title">בתחבורה</span>
+                  </div>
+                  <strong class="mode-time" id="transitTimeDisplay">-- דק׳</strong>
+                  <span class="mode-extra" id="transitTipDisplay">אוטובוס / קו ישיר</span>
+                </div>
+
+                <!-- Driving / Taxi -->
+                <div class="mode-item driving">
+                  <div class="mode-header">
+                    <span class="mode-icon">🚗</span>
+                    <span class="mode-title">ברכב / מונית</span>
+                  </div>
+                  <strong class="mode-time" id="driveTimeDisplay">-- דק׳</strong>
+                  <span class="mode-extra" id="driveCostDisplay">~-- ₪</span>
+                </div>
+              </div>
+
+              <div class="hotel-actions-bar">
+                <a href="#" id="btnNavigateToHotel" target="_blank" rel="noopener" class="btn-hotel-nav">
+                  <span>🧭 נווט למלון ב-Google Maps</span>
+                </a>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ==================================================
+             "איפה אני נמצא" - HERO ATTRACTION BANNER
+             ================================================== -->
+        <div class="hero-attraction-banner" id="heroAttractionBanner">
+          <div class="hero-backdrop-glow"></div>
+          <div class="hero-content">
+            
+            <div class="hero-badge-row">
+              <span class="hero-chip-radar">
+                <span class="radar-ping"></span>
+                <span>איפה אני נמצא כעת</span>
+              </span>
+              <span class="hero-status-pill" id="heroOpenStatusPill">🟢 פתוח עכשיו</span>
+              <span class="hero-dist-pill" id="heroDistancePill">📍 במרחק 0 מ' ממך</span>
+            </div>
+
+            <h2 class="hero-attraction-title" id="heroAttractionTitle">מדרחוב המייסדים</h2>
+            <p class="hero-attraction-subtitle" id="heroAttractionSubtitle">מושבת העלייה הראשונה, בתי איכרים ציוריים, גלריות ובתי קפה</p>
+
+            <!-- Attractions Picker if multiple exist in area -->
+            <div class="nearby-spots-picker" id="nearbySpotsPickerSection">
+              <span class="picker-label">🎯 אטרקציות ומוקדי עניין בסביבתך הקרובה:</span>
+              <div class="picker-cards-scroll" id="nearbySpotsPickerContainer">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <div class="hero-actions-row">
+              <button class="btn-hero-deep-dive" id="btnOpenAttractionModal">
+                <span>✨ גלה על המקום (סיפורים, מדריך, מופעים ומחיר)</span>
+              </button>
+              <button class="btn-hero-map" id="btnFocusMapAttraction">
+                <span>🗺️ הצג במפה</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ==================================================
+             NEARBY PLACES SECTION (מסעדות, בתי קפה, שירותים ומה עוד)
+             ================================================== -->
+        <section class="places-explorer-section">
+          
+          <div class="explorer-header">
+            <div class="explorer-title-wrap">
+              <h3 class="explorer-title">📍 מה בסביבה</h3>
+              <p class="explorer-subtitle">מסעדות, בתי קפה, שירותים ציבוריים ושירותים חיוניים סביב מיקומך</p>
+            </div>
+
+            <!-- Search Input -->
+            <div class="places-search-wrap">
+              <input type="text" id="placesSearchInput" class="places-search-input" placeholder="🔍 חפש מסעדה, בית קפה או מקום...">
+              <button class="btn-clear-search" id="btnClearSearch" title="נקה חיפוש">✕</button>
+            </div>
+          </div>
+
+          <!-- Category Filter Tabs -->
+          <div class="category-tabs-bar">
+            <button class="category-tab-btn active" data-category="all">
+              <span>🌟 הכל בסביבה</span>
+            </button>
+            <button class="category-tab-btn" data-category="restaurant">
+              <span>🍽️ מסעדות בסביבה</span>
+            </button>
+            <button class="category-tab-btn" data-category="cafe">
+              <span>☕ בתי קפה</span>
+            </button>
+            <button class="category-tab-btn" data-category="restroom">
+              <span>🚻 שירותים ציבוריים</span>
+            </button>
+            <button class="category-tab-btn" data-category="essential">
+              <span>🏬 מה עוד באזור</span>
+            </button>
+          </div>
+
+          <!-- Places Grid & Live Indicator -->
+          <div class="places-status-row">
+            <span class="places-count-text" id="placesCountText">נמצאו מקומות בסביבה</span>
+            <span class="places-live-indicator" id="placesLiveIndicator">⚡ מעודכן למיקומך הנוכחי</span>
+          </div>
+
+          <div class="places-cards-grid" id="placesGrid">
+            <!-- Dynamically Rendered Place Cards -->
+          </div>
+
+        </section>
+
+        <!-- ==================================================
+             INTERACTIVE MAP SECTION
+             ================================================== -->
+        <section class="map-section" id="mapSection">
+          <div class="map-section-header">
+            <h3 class="section-title">🗺️ מפה חיה של האזור</h3>
+            <span class="map-hint">לחצו על הסיכות במפה למידע נוסף וניווט מיידי</span>
+          </div>
+          <div class="map-wrapper">
+            <div id="leafletMap" class="leaflet-map-element"></div>
+          </div>
+        </section>
+
+      </div>
+    </section>
+
   </main>
 
-  <!-- ==========================================================================
-       מסך 2: חקירה ראשית - מה בסביבה (Explore Dashboard View)
-       ========================================================================== -->
-  <main id="viewExplore" class="view-screen active">
-
-    <!-- באנר תיקייה פעילה ובקרת מיקום -->
-    <section class="explore-top-banner">
-      <div class="active-trip-meta">
-        <div class="active-trip-badge-icon" id="activeFolderIcon">🏛️</div>
-        <div class="active-trip-details">
-          <h2 id="activeTripName">רומא הקלאסית</h2>
-          <p id="activeTripCity">📍 רומא, איטליה</p>
-        </div>
-      </div>
-
-      <div class="location-controls-bar">
-        <div class="hotspot-select-wrap">
-          <select id="hotspotSelector" class="hotspot-select" aria-label="בחירת נקודת ציון לבדיקה">
-            <optgroup label="זכרון יעקב והכרמל, ישראל">
-              <option value="zy-meyasdim">🍇 מדרחוב המייסדים ומושבת הראשונים</option>
-              <option value="zy-ramat-hanadiv">🌸 גני הנדיב ופארק הטבע</option>
-              <option value="zy-carmel-winery">🍷 יקבי כרמל ומרכז תרבות היין</option>
-            </optgroup>
-            <optgroup label="ירושלים, ישראל">
-              <option value="jlm-kotel">🕍 הכותל המערבי והעיר העתיקה</option>
-            </optgroup>
-            <optgroup label="תל אביב, ישראל">
-              <option value="tlv-beach">🌊 טיילת וחוף גורדון</option>
-              <option value="tlv-carmel">🍉 שוק הכרמל ונחלת בנימין</option>
-            </optgroup>
-            <optgroup label="רומא, איטליה">
-              <option value="rome-colosseum" selected>🏟️ הקולוסיאום (Colosseum)</option>
-              <option value="rome-trevi">⛲ מזרקת טרווי (Trevi Fountain)</option>
-            </optgroup>
-            <optgroup label="פריז, צרפת">
-              <option value="paris-eiffel">🗼 מגדל אייפל (Eiffel Tower)</option>
-            </optgroup>
-            <optgroup label="ברצלונה, ספרד">
-              <option value="bcn-sagrada">🎨 סגרדה פמיליה (Sagrada Família)</option>
-            </optgroup>
-          </select>
-        </div>
-
-        <button class="btn-gps-live" id="btnLiveGPS" title="קרא את ה-GPS הנוכחי מהמכשיר">
-          <span>📡</span>
-          <span>מיקום GPS חי</span>
-        </button>
-
-        <button class="btn-nav" data-view-target="folders" title="החלף תיקיית טיול">
-          <span>📂 החלף טיול</span>
-        </button>
-      </div>
-    </section>
-
-    <!-- ווידג'ט מזג אוויר בזמן אמת -->
-    <section class="weather-banner" id="weatherWidget">
-      <div class="weather-primary-info">
-        <div class="weather-big-icon" id="weatherIcon">🌤️</div>
-        <div class="weather-temp-wrap">
-          <h3 id="weatherTemp">22°C</h3>
-          <div class="weather-condition-label" id="weatherCondition">נעים ובהיר</div>
-        </div>
-      </div>
-
-      <div class="weather-tip-box">
-        <p id="weatherTipText">☀️ מזג אוויר מצוין לשיטוט רגלי בעיר! קחו מים ותיהנו מהדרך.</p>
-      </div>
-
-      <div class="weather-extra-metrics">
-        <span id="weatherWind">💨 12 קמ״ש</span>
-        <span id="weatherHumidity">💧 55% לחות</span>
-      </div>
-    </section>
-
-    <!-- כרטיסייה הרואית: "איפה אני נמצא עכשיו?" -->
-    <section class="hero-where-am-i-card">
-      <div class="hero-left-content">
-        <div class="hero-radar-badge">📍</div>
-        <div class="hero-text-block">
-          <h3 id="heroAttractionTitle">הקולוסיאום (Colosseo)</h3>
-          <div class="hero-meta-row">
-            <span class="hero-dist-text" id="heroAttractionDistance">📍 צמוד למיקומך הנוכחי</span>
-            <span class="hero-status-pill status-open" id="heroAttractionStatus">🟢 פתוח עכשיו</span>
-          </div>
-        </div>
-      </div>
-
-      <button class="btn-where-am-i-action" id="btnWhereAmI">
-        <span>✨ איפה אני נמצא עכשיו?</span>
-        <span>(פרטים, שעות, מופעים ומחירים)</span>
-      </button>
-    </section>
-
-    <!-- סרגל בחירת אטרקציה בסביבה - מאפשר לבחור היכן אתה נמצא אם יש כמה אטרקציות -->
-    <section class="nearby-attractions-picker-section" id="nearbyAttractionsPickerSection">
-      <div class="picker-header">
-        <h4><span>🎯</span> <span>אטרקציות בסביבתך - היכן את/ה נמצא/ת כעת?</span></h4>
-        <span class="hint">לחצו על "אני כאן!" כדי לבחור את האטרקציה המדויקת</span>
-      </div>
-      <div class="picker-cards-scroll" id="nearbyAttractionsPickerContainer">
-        <!-- ממולא דינמית דרך app.js -->
-      </div>
-    </section>
-
-    <!-- ווידג'ט מעקב מרחק מהמלון (ברגל, תחב"צ, רכב) -->
-    <section class="hotel-distance-widget">
-      <div class="hotel-widget-header">
-        <div class="hotel-info-summary">
-          <div class="hotel-icon-badge">🏨</div>
-          <div class="hotel-name-group">
-            <h4 id="hotelWidgetName">Hotel Quirinale Rome</h4>
-            <p id="hotelWidgetAddress">Via Nazionale 7, 00184 Roma</p>
-          </div>
-        </div>
-
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <span class="hotel-total-distance-badge" id="hotelWidgetTotalDist">1.2 ק״מ מהמלון</span>
-          <button class="btn-icon-action" id="btnEditHotel" title="עדכן פרטי מלון">✏️ ערוך מלון</button>
-        </div>
-      </div>
-
-      <!-- 3 מצבי הגעה -->
-      <div class="hotel-transit-modes-grid">
-        <!-- 1. ברגל -->
-        <div class="transit-mode-card walking">
-          <div class="mode-header">
-            <span class="mode-label">🚶‍♂️ ברגל</span>
-            <span class="mode-time-highlight" id="hotelWalkTime">16 דק׳</span>
-          </div>
-          <p class="mode-details-text" id="hotelWalkSteps">~1,800 צעדים במסלול עירוני</p>
-          <a id="hotelWalkNavBtn" href="#" target="_blank" rel="noopener" class="btn-mode-nav">
-            🧭 נווט ברגל ב-Google Maps
-          </a>
-        </div>
-
-        <!-- 2. בתחבורה ציבורית -->
-        <div class="transit-mode-card transit">
-          <div class="mode-header">
-            <span class="mode-label">🚌 תחבורה ציבורית</span>
-            <span class="mode-time-highlight" id="hotelTransitTime">10 דק׳</span>
-          </div>
-          <p class="mode-details-text" id="hotelTransitAdvice">מטרו קו B או קווי אוטובוס סמוכים</p>
-          <a id="hotelTransitNavBtn" href="#" target="_blank" rel="noopener" class="btn-mode-nav">
-            🚇 מסלול תחבורה ציבורית
-          </a>
-        </div>
-
-        <!-- 3. ברכב / מונית -->
-        <div class="transit-mode-card driving">
-          <div class="mode-header">
-            <span class="mode-label">🚗 ברכב / מונית</span>
-            <span class="mode-time-highlight" id="hotelDriveTime">6 דק׳</span>
-          </div>
-          <p class="mode-details-text">עלות מונית משוערת: <strong id="hotelDriveCost">~9 €</strong></p>
-          <a id="hotelDriveNavBtn" href="#" target="_blank" rel="noopener" class="btn-mode-nav">
-            🚗 מסלול נסיעה ברכב
-          </a>
-        </div>
-      </div>
-    </section>
-
-    <!-- פריסת חקירה: רשימת מקומות ומפה אינטראקטיבית -->
-    <div class="explore-content-layout">
-      <!-- עמודת רשימת מקומות -->
-      <div class="places-column">
-        <!-- סרגל קטגוריות סינון -->
-        <div class="category-filter-bar">
-          <button class="category-tab-btn active" data-category="all">
-            <span>🌟</span>
-            <span>הכל מסביב</span>
-          </button>
-          <button class="category-tab-btn" data-category="restaurant">
-            <span>🍽️</span>
-            <span>מסעדות</span>
-          </button>
-          <button class="category-tab-btn" data-category="cafe">
-            <span>☕</span>
-            <span>בתי קפה</span>
-          </button>
-          <button class="category-tab-btn" data-category="restroom">
-            <span>🚻</span>
-            <span>שירותים ציבוריים</span>
-          </button>
-          <button class="category-tab-btn" data-category="essential">
-            <span>🔍</span>
-            <span>מה עוד באזור?</span>
-          </button>
-        </div>
-
-        <!-- שורת חיפוש -->
-        <div class="places-search-bar">
-          <input type="text" id="placesSearchInput" class="places-search-input" placeholder="חיפוש מסעדה, בית קפה, שירותים או שירות באזור...">
-          <span class="places-search-icon">🔍</span>
-        </div>
-
-        <!-- כותרת הרשימה -->
-        <div class="places-list-header">
-          <h3>מקומות מומלצים בסביבה</h3>
-          <span class="places-count-badge" id="placesCountBadge">טוען...</span>
-        </div>
-
-        <!-- כרטיסיות מקומות -->
-        <div id="placesListContainer" class="places-cards-grid">
-          <!-- ממולא דינמית דרך places.js -->
-        </div>
-      </div>
-
-      <!-- עמודת מפה אינטראקטיבית -->
-      <div class="map-column">
-        <div id="leafletMapContainer"></div>
-      </div>
-    </div>
-
-    <!-- כפתור ציפה למעבר מפה/רשימה במובייל -->
-    <button class="mobile-map-toggle-btn" id="btnToggleMobileMap">
-      <span>🗺️</span>
-      <span>החלף לתצוגת מפה / רשימה</span>
+  <!-- ========================================================
+       BOTTOM NAVIGATION BAR (Optimized for iPhone Safari)
+       ======================================================== -->
+  <nav class="bottom-nav-bar">
+    <button class="bottom-nav-item active" data-target="viewFolders" id="navItemFolders">
+      <span class="nav-icon">📂</span>
+      <span class="nav-text">תיקיות ומלונות</span>
     </button>
-  </main>
-
-  <!-- ==========================================================================
-       חלון מודל עמוק: "איפה אני נמצא" (Deep Dive Modal)
-       קריאת שעה/תאריך מהאייפון, שעות פתיחה, מופעים, סיפורים, מדריך ומחירים
-       ========================================================================== -->
-  <div id="attractionModal" class="modal-overlay" role="dialog" aria-modal="true">
-    <div class="modal-container">
-      <div class="modal-header-hero">
-        <img id="attrImage" src="" alt="אטרקציה" class="modal-hero-img">
-        <div class="modal-hero-gradient"></div>
-        <button class="modal-close-btn" id="closeAttrModal" aria-label="סגור חלון">✕</button>
-        <div class="modal-header-text">
-          <h2 id="attrTitle">שם האטרקציה</h2>
-          <p id="attrSubtitle">מיקום ותת-כותרת</p>
-        </div>
-      </div>
-
-      <div class="modal-body">
-        <!-- סרגל החלפת אטרקציה בתוך המודל -->
-        <div id="attrModalSwitcher" style="display: none; margin-bottom: 8px;"></div>
-
-        <!-- שעון המכשיר -->
-        <div class="device-time-bar" id="attrDeviceClock">
-          <span>📱 שעון המכשיר: <strong>שבת, 16:58</strong></span>
-        </div>
-
-        <!-- סטטוס פתיחה חי -->
-        <div id="attrStatusBox" class="status-banner status-open">
-          <div class="status-indicator-badge">🟢 פתוח עכשיו</div>
-          <div class="status-details">פתוח עד 19:15</div>
-        </div>
-
-        <!-- שעות פתיחה לכל ימי השבוע -->
-        <section class="modal-section">
-          <h4 class="modal-section-title">
-            <span>🕒</span>
-            <span>לוח שעות פתיחה שבועי</span>
-          </h4>
-          <div id="attrScheduleContainer"></div>
-        </section>
-
-        <!-- מופעים, אירועים ופעילויות להיום -->
-        <section class="modal-section">
-          <h4 class="modal-section-title">
-            <span>🎭</span>
-            <span>מופעים, אירועים וסיורים להיום באתר</span>
-          </h4>
-          <div id="attrShowsContainer"></div>
-        </section>
-
-        <!-- פרטים ותיאור -->
-        <section class="modal-section">
-          <h4 class="modal-section-title">
-            <span>📖</span>
-            <span>פרטים על האטרקציה</span>
-          </h4>
-          <p id="attrDetailsText" class="modal-desc-p"></p>
-        </section>
-
-        <!-- סיפורים מעניינים -->
-        <section class="modal-section">
-          <h4 class="modal-section-title">
-            <span>💡</span>
-            <span>סיפורים מעניינים ואנקדוטות שלא כולם מכירים</span>
-          </h4>
-          <div id="attrStoriesContainer"></div>
-        </section>
-
-        <!-- מדריך קצר - מה עושים כאן -->
-        <section class="modal-section">
-          <h4 class="modal-section-title">
-            <span>🧭</span>
-            <span>מדריך קצר - מה עושים כאן? טיפים מנצחים</span>
-          </h4>
-          <div id="attrGuideContainer"></div>
-        </section>
-
-        <!-- מחירי כרטיסים -->
-        <section class="modal-section">
-          <h4 class="modal-section-title">
-            <span>🎫</span>
-            <span>מחיר כניסה ועלויות כרטיסים</span>
-          </h4>
-          <div id="attrPricesContainer"></div>
-        </section>
-
-        <!-- קישור לאתר הרשמי וכפתורי ניווט -->
-        <div class="modal-actions-bar">
-          <a id="attrOfficialLink" href="#" target="_blank" rel="noopener" class="btn-modal-primary">
-            🌐 כניסה לאתר הרשמי ולהזמנת כרטיסים
-          </a>
-          <a id="attrNavigateBtn" href="#" target="_blank" rel="noopener" class="btn-modal-secondary">
-            🧭 נווט לאטרקציה ב-Google Maps
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ==========================================================================
-       מודל יצירת תיקיית טיול חדשה (Create Folder Modal)
-       ========================================================================== -->
-  <div id="folderCreateModal" class="modal-overlay" role="dialog" aria-modal="true">
-    <div class="form-modal-container">
-      <div class="form-modal-header">
-        <h3>יצירת תיקיית טיול חדשה ✈️</h3>
-        <button class="modal-close-btn" id="closeFolderModal" style="position: static;">✕</button>
-      </div>
-
-      <form id="folderForm">
-        <div class="form-group">
-          <label for="newTripName">שם הטיול / החופשה *</label>
-          <input type="text" id="newTripName" class="form-input" placeholder="למשל: סופ״ש רומנטי בפריז" required>
-        </div>
-
-        <div class="form-group">
-          <label for="newTripCity">עיר / יעד *</label>
-          <input type="text" id="newTripCity" class="form-input" placeholder="למשל: פריז, צרפת או רומא, איטליה" required>
-        </div>
-
-        <div class="form-group">
-          <label for="newTripHotel">שם המלון בו אתם שוהים *</label>
-          <input type="text" id="newTripHotel" class="form-input" placeholder="למשל: Hotel Quirinale" required>
-        </div>
-
-        <div class="form-group">
-          <label for="newTripHotelAddress">כתובת המלון</label>
-          <input type="text" id="newTripHotelAddress" class="form-input" placeholder="רחוב, מספר, עיר (ייקבע אוטומטית במפה)">
-          <button type="button" class="btn-use-current-gps" id="btnUseGpsForNewHotel">
-            <span>📍</span> <span>השתמש במיקום ה-GPS הנוכחי שלי עבור המלון</span>
-          </button>
-        </div>
-
-        <div class="form-row-2">
-          <div class="form-group">
-            <label for="newTripIcon">אייקון לתיקייה</label>
-            <select id="newTripIcon" class="form-select">
-              <option value="✈️">✈️ טיסה</option>
-              <option value="🏛️">🏛️ עיר היסטורית</option>
-              <option value="🗼">🗼 פריז / אירופה</option>
-              <option value="🌊">🌊 חוף ים</option>
-              <option value="🎨">🎨 אומנות ומוזיאונים</option>
-              <option value="🍕">🍕 קולינריה ושווקים</option>
-              <option value="🕍">🕍 ירושלים ומורשת</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="newTripHotelNotes">הערות למלון (קוד כניסה, קומה)</label>
-            <input type="text" id="newTripHotelNotes" class="form-input" placeholder="הערה קצרה">
-          </div>
-        </div>
-
-        <div class="form-actions">
-          <button type="button" class="btn-nav" onclick="window.app.closeFolderModal()">ביטול</button>
-          <button type="submit" class="btn-nav primary" id="btnSubmitNewFolder">💾 שמור תיקייה והתחל חקירה</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ==========================================================================
-       מודל עריכת פרטי מלון (Edit Hotel Modal)
-       ========================================================================== -->
-  <div id="hotelEditModal" class="modal-overlay" role="dialog" aria-modal="true">
-    <div class="form-modal-container">
-      <div class="form-modal-header">
-        <h3>עריכת פרטי מלון 🏨</h3>
-        <button class="modal-close-btn" id="closeHotelModal" style="position: static;">✕</button>
-      </div>
-
-      <form id="hotelForm">
-        <input type="hidden" id="editHotelFolderId">
-
-        <div class="form-group">
-          <label for="editHotelName">שם המלון *</label>
-          <input type="text" id="editHotelName" class="form-input" required>
-        </div>
-
-        <div class="form-group">
-          <label for="editHotelAddress">כתובת המלון</label>
-          <input type="text" id="editHotelAddress" class="form-input" placeholder="רחוב, מספר, עיר">
-          <button type="button" class="btn-use-current-gps" id="btnUseGpsForEditHotel">
-            <span>📍</span> <span>השתמש במיקום ה-GPS הנוכחי שלי עבור המלון</span>
-          </button>
-        </div>
-
-        <div class="form-row-2" style="display: none;">
-          <div class="form-group">
-            <label for="editHotelLat">קו רוחב (Latitude)</label>
-            <input type="number" step="any" id="editHotelLat" class="form-input">
-          </div>
-          <div class="form-group">
-            <label for="editHotelLng">קו אורך (Longitude)</label>
-            <input type="number" step="any" id="editHotelLng" class="form-input">
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="editHotelNotes">הערות ופרטים נוספים</label>
-          <textarea id="editHotelNotes" class="form-textarea" placeholder="טיפים להגעה, קוד דלת, שעות ארוחת בוקר..."></textarea>
-        </div>
-
-        <div class="form-actions">
-          <button type="button" class="btn-nav" onclick="window.app.closeEditHotelModal()">ביטול</button>
-          <button type="submit" class="btn-nav primary">עדכן פרטי מלון</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ==========================================================================
-       תפריט תחתון למובייל (Mobile Bottom Navigation)
-       ========================================================================== -->
-  <nav class="bottom-nav">
-    <button class="bottom-nav-item active" data-view-target="explore">
-      <span class="icon">📍</span>
-      <span>מה בסביבה</span>
+    <button class="bottom-nav-item" data-target="viewExplore" id="navItemExplore">
+      <span class="nav-icon">🧭</span>
+      <span class="nav-text">מה בסביבה</span>
     </button>
-    <button class="bottom-nav-item" data-view-target="folders">
-      <span class="icon">📂</span>
-      <span>תיקיות</span>
-    </button>
-    <button class="bottom-nav-item" onclick="window.attractionModalManager.openModal()">
-      <span class="icon">🏛️</span>
-      <span>איפה אני?</span>
-    </button>
-    <button class="bottom-nav-item" onclick="window.app.openEditHotelModal()">
-      <span class="icon">🏨</span>
-      <span>המלון שלי</span>
+    <button class="bottom-nav-item" data-target="mapSection" id="navItemMap">
+      <span class="nav-icon">🗺️</span>
+      <span class="nav-text">מפה</span>
     </button>
   </nav>
 
-  <!-- סקריפטים: Leaflet, מאגרי נתונים ומודולים -->
+  <!-- ========================================================
+       MODAL 1: "איפה אני נמצא" - DEEP DIVE ATTRACTION MODAL
+       סנכרון מלא עם תאריך ושעה באייפון, שעות פתיחה, מופעים, סיפורים ומחירים
+       ======================================================== -->
+  <div class="app-modal" id="modalAttraction" role="dialog" aria-modal="true">
+    <div class="modal-backdrop" id="backdropAttraction"></div>
+    <div class="modal-container attraction-modal-sheet">
+      
+      <!-- Modal Header -->
+      <div class="sheet-handle-bar">
+        <span class="sheet-drag-pill"></span>
+      </div>
+
+      <div class="modal-header-hero">
+        <img src="" alt="" id="modalAttrImage" class="modal-hero-cover-img">
+        <div class="modal-hero-overlay"></div>
+        <button class="btn-modal-close" id="btnCloseAttractionModal" aria-label="סגור">✕</button>
+        
+        <div class="modal-hero-text">
+          <div class="modal-chips-row">
+            <span class="modal-chip-city" id="modalAttrCity">זכרון יעקב</span>
+            <span class="modal-status-badge" id="modalAttrStatusBadge">🟢 פתוח עכשיו</span>
+          </div>
+          <h2 class="modal-attraction-title" id="modalAttrTitle">מדרחוב המייסדים</h2>
+          <p class="modal-attraction-subtitle" id="modalAttrSubtitle">מושבת העלייה הראשונה</p>
+        </div>
+      </div>
+
+      <!-- Modal Body (Scrollable with iOS Momentum) -->
+      <div class="modal-scrollable-body">
+        
+        <!-- Live iPhone Device Clock Notice -->
+        <div class="device-clock-notice" id="modalDeviceClockNotice">
+          <span class="notice-icon">📱</span>
+          <span class="notice-text">שעון המכשיר: <strong>רביעי, 11:32</strong> (נבדק מול לוח השעות של האתר)</span>
+        </div>
+
+        <!-- Weekly Schedule Table -->
+        <div class="modal-section-card">
+          <h4 class="card-section-title">🕒 שעות פתיחה שבועיות</h4>
+          <div class="weekly-schedule-list" id="modalAttrScheduleList">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- Live Shows & Events Today -->
+        <div class="modal-section-card highlight-card">
+          <div class="title-with-badge">
+            <h4 class="card-section-title">🎭 מופעים, אירועים ופעילויות מתוזמנים להיום</h4>
+            <span class="live-pill">היום</span>
+          </div>
+          <div class="shows-events-list" id="modalAttrShowsList">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- Details & History -->
+        <div class="modal-section-card">
+          <h4 class="card-section-title">📖 על המקום וההיסטוריה</h4>
+          <p class="modal-desc-text" id="modalAttrDetailsText"></p>
+        </div>
+
+        <!-- Interesting Stories -->
+        <div class="modal-section-card stories-card">
+          <h4 class="card-section-title">💡 סיפורים מעניינים ואנקדוטות שלא כולם מכירים</h4>
+          <div class="stories-bubbles-list" id="modalAttrStoriesList">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- What to do guide -->
+        <div class="modal-section-card">
+          <h4 class="card-section-title">🧭 מדריך קצר: מה עושים כאן?</h4>
+          <div class="guide-steps-list" id="modalAttrGuideList">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- Ticket Prices -->
+        <div class="modal-section-card">
+          <h4 class="card-section-title">🎟️ מחירי כרטיסים ועלויות</h4>
+          <div class="prices-badges-grid" id="modalAttrPricesList">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Sticky Footer Actions -->
+      <div class="modal-sticky-footer">
+        <a href="#" id="modalAttrOfficialLink" target="_blank" rel="noopener" class="btn-modal-official" style="display: none;">
+          <span>🌐 אתר רשמי</span>
+        </a>
+        <a href="#" id="modalAttrNavigateBtn" target="_blank" rel="noopener" class="btn-modal-navigate">
+          <span>🧭 נווט למקום (Google Maps)</span>
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================
+       MODAL 2: CREATE / EDIT FOLDER & HOTEL MODAL
+       הזנת פרטי טיול ומלון ידנית או שימוש ב-GPS
+       ======================================================== -->
+  <div class="app-modal" id="modalFolder" role="dialog" aria-modal="true">
+    <div class="modal-backdrop" id="backdropFolder"></div>
+    <div class="modal-container folder-form-sheet">
+      
+      <div class="sheet-handle-bar">
+        <span class="sheet-drag-pill"></span>
+      </div>
+
+      <div class="modal-form-header">
+        <div class="header-icon-wrap">✈️</div>
+        <div class="header-titles">
+          <h3 class="form-modal-title" id="folderModalTitle">יצירת תיקיית טיול חדשה</h3>
+          <p class="form-modal-subtitle">הזינו את יעד החופשה ופרטי המלון כדי לחשב מרחקים</p>
+        </div>
+        <button class="btn-modal-close" id="btnCloseFolderModal" aria-label="סגור">✕</button>
+      </div>
+
+      <form id="formFolder" class="folder-edit-form">
+        <input type="hidden" id="formFolderId" value="">
+
+        <div class="form-scrollable-content">
+
+          <!-- Trip Name -->
+          <div class="form-group">
+            <label for="formTripName" class="form-label">שם הטיול / החופשה <span class="required">*</span></label>
+            <input type="text" id="formTripName" class="form-input" placeholder="לדוגמה: סופ״ש בזכרון יעקב, חופשה ברומא..." required>
+          </div>
+
+          <!-- City -->
+          <div class="form-group">
+            <label for="formTripCity" class="form-label">עיר / יעד <span class="required">*</span></label>
+            <input type="text" id="formTripCity" class="form-input" placeholder="לדוגמה: זכרון יעקב, רומא, פריז..." required>
+          </div>
+
+          <!-- Hotel Name -->
+          <div class="form-group">
+            <label for="formHotelName" class="form-label">שם המלון / הדירה <span class="required">*</span></label>
+            <input type="text" id="formHotelName" class="form-input" placeholder="לדוגמה: מלון אלמא, מלון המלך דוד..." required>
+          </div>
+
+          <!-- Hotel Address -->
+          <div class="form-group">
+            <label for="formHotelAddress" class="form-label">כתובת המלון (לחישוב מרחקים מדויק)</label>
+            <input type="text" id="formHotelAddress" class="form-input" placeholder="לדוגמה: רחוב יאיר 1, זכרון יעקב">
+          </div>
+
+          <!-- GPS Autofill Button for Hotel -->
+          <div class="form-group-gps-action">
+            <button type="button" class="btn-gps-hotel-autofill" id="btnUseGpsForHotel">
+              <span>📍 קבע את מיקום ה-GPS הנוכחי שלי כמיקום המלון</span>
+            </button>
+            <span class="gps-field-hint" id="gpsHotelStatusHint">מומלץ כאשר אתם נמצאים כרגע במלון!</span>
+          </div>
+
+          <!-- Hidden / Custom Lat & Lng -->
+          <input type="hidden" id="formHotelLat" value="">
+          <input type="hidden" id="formHotelLng" value="">
+
+          <!-- Hotel Notes -->
+          <div class="form-group">
+            <label for="formHotelNotes" class="form-label">הערות שימושיות למלון (קוד כניסה, Wi-Fi, ארוחת בוקר)</label>
+            <textarea id="formHotelNotes" class="form-textarea" rows="2" placeholder="לדוגמה: קוד לילה 4421, ארוחת בוקר 07:30-10:30..."></textarea>
+          </div>
+
+          <!-- Icon Choice -->
+          <div class="form-group">
+            <label for="formTripIcon" class="form-label">אייקון לתיקייה</label>
+            <select id="formTripIcon" class="form-select">
+              <option value="🍇">🍇 כרמים וטבע (זכרון יעקב / גליל)</option>
+              <option value="🏛️">🏛️ היסטוריה ועתיקות (רומא / ירושלים)</option>
+              <option value="🌊">🌊 חוף ונופש (תל אביב / אילת)</option>
+              <option value="🗼">🗼 רומנטיקה ועיר (פריז)</option>
+              <option value="🎨">🎨 אמנות ותרבות (ברצלונה)</option>
+              <option value="✈️">✈️ טיסה וחופשה כללית</option>
+            </select>
+          </div>
+
+        </div>
+
+        <!-- Sticky Submit Bar -->
+        <div class="form-sticky-footer">
+          <button type="submit" class="btn-submit-folder" id="btnSubmitFolder">
+            <span>💾 שמור תיקייה והתחל חקירה</span>
+          </button>
+        </div>
+
+      </form>
+
+    </div>
+  </div>
+
+  <!-- Scripts -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="js/data.js"></script>
   <script src="js/folders.js"></script>
-  <script src="js/weather.js"></script>
   <script src="js/hotel-distance.js"></script>
+  <script src="js/weather.js"></script>
   <script src="js/location.js"></script>
   <script src="js/attraction-modal.js"></script>
   <script src="js/places.js"></script>
   <script src="js/map.js"></script>
   <script src="js/app.js"></script>
-
 </body>
 </html>

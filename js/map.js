@@ -1,6 +1,6 @@
 // ==========================================================================
 // שירות מפה אינטראקטיבית (Leaflet Map Service)
-// סיכות מותאמות אישית, פולס רדאר, סיכת מלון מוזהבת וקו ניווט
+// סימון משתמש, סימון מלון, קו ניווט וסיכות מקומות מסווגות
 // ==========================================================================
 
 class MapService {
@@ -8,179 +8,148 @@ class MapService {
     this.map = null;
     this.userMarker = null;
     this.hotelMarker = null;
-    this.placeMarkersLayer = null;
     this.routeLine = null;
-    this.isInitialized = false;
+    this.placesMarkersLayer = null;
   }
 
-  initMap(containerId = 'leafletMapContainer', initialLat = 41.8902, initialLng = 12.4922) {
-    if (this.isInitialized || !window.L) return;
+  initMap(containerId = 'leafletMap', defaultLat = 32.5714, defaultLng = 34.9530) {
+    if (this.map) return;
 
-    const container = document.getElementById(containerId);
-    if (!container) return;
+    const el = document.getElementById(containerId);
+    if (!el) return;
 
     this.map = L.map(containerId, {
-      center: [initialLat, initialLng],
-      zoom: 15,
-      zoomControl: false
-    });
+      zoomControl: true,
+      attributionControl: false
+    }).setView([defaultLat, defaultLng], 15);
 
-    // בקרת זום בצד שמאל למעלה (בממשק עברי)
-    L.control.zoom({ position: 'topleft' }).addTo(this.map);
-
-    // שכבת מפה מודרנית ונקייה מבית CartoDB (Voyager)
+    // CartoDB Dark Matter / Positron tiles for a sleek modern look
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://carto.com/">CARTO</a> & OpenStreetMap',
-      subdomains: 'abcd',
-      maxZoom: 20
+      maxZoom: 19
     }).addTo(this.map);
 
-    this.placeMarkersLayer = L.layerGroup().addTo(this.map);
-    this.isInitialized = true;
-
-    // רענון ממדי מפה
-    setTimeout(() => {
-      if (this.map) this.map.invalidateSize();
-    }, 300);
+    this.placesMarkersLayer = L.layerGroup().addTo(this.map);
   }
 
-  updateUserMarker(lat, lng) {
-    if (!this.map || !window.L) return;
+  // סימון מיקום המשתמש עם עיגול פועם
+  updateUserMarker(lat, lng, title = 'המיקום הנוכחי שלך') {
+    if (!this.map) return;
 
     const userIcon = L.divIcon({
       className: 'custom-user-marker',
       html: `
-        <div class="user-radar-container">
-          <div class="radar-pulse"></div>
-          <div class="user-core-dot"></div>
+        <div style="position: relative; width: 24px; height: 24px;">
+          <div style="position: absolute; inset: -6px; background: rgba(59, 130, 246, 0.4); border-radius: 50%; animation: pulseDot 1.5s infinite;"></div>
+          <div style="position: absolute; inset: 0; background: #2563eb; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.4);"></div>
         </div>
       `,
-      iconSize: [36, 36],
-      iconAnchor: [18, 18]
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
     });
 
     if (this.userMarker) {
       this.userMarker.setLatLng([lat, lng]);
     } else {
-      this.userMarker = L.marker([lat, lng], { icon: userIcon, zIndexOffset: 1000 })
-        .addTo(this.map)
-        .bindPopup(`
-          <div class="map-popup-card">
-            <strong>📍 המיקום הנוכחי שלך</strong>
-            <p style="margin: 4px 0 0; font-size: 12px; color: #666;">נקודת הזיהוי של האפליקציה</p>
-          </div>
-        `);
+      this.userMarker = L.marker([lat, lng], { icon: userIcon }).addTo(this.map);
+      this.userMarker.bindPopup(`<strong>📍 ${title}</strong>`);
     }
   }
 
-  updateHotelMarker(lat, lng, hotelName = 'המלון שלי', hotelAddress = '') {
-    if (!this.map || !window.L) return;
+  // סימון המלון
+  updateHotelMarker(lat, lng, name = 'המלון שלי', address = '') {
+    if (!this.map) return;
 
     const hotelIcon = L.divIcon({
       className: 'custom-hotel-marker',
       html: `
-        <div class="hotel-star-pin">
-          <span class="hotel-star-icon">🏨</span>
+        <div style="background: #f59e0b; color: white; border: 2px solid white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; box-shadow: 0 4px 10px rgba(0,0,0,0.35);">
+          🏨
         </div>
       `,
-      iconSize: [40, 40],
-      iconAnchor: [20, 20]
+      iconSize: [34, 34],
+      iconAnchor: [17, 17]
     });
 
     if (this.hotelMarker) {
       this.hotelMarker.setLatLng([lat, lng]);
     } else {
-      this.hotelMarker = L.marker([lat, lng], { icon: hotelIcon, zIndexOffset: 900 })
-        .addTo(this.map);
+      this.hotelMarker = L.marker([lat, lng], { icon: hotelIcon }).addTo(this.map);
     }
 
     this.hotelMarker.bindPopup(`
-      <div class="map-popup-card">
-        <div style="font-weight: 700; color: #1e3c72; font-size: 14px;">🏨 ${hotelName}</div>
-        ${hotelAddress ? `<div style="font-size: 12px; color: #64748b; margin-top: 4px;">${hotelAddress}</div>` : ''}
-        <div style="margin-top: 8px;">
-          <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" rel="noopener" class="popup-navigate-btn">
-            🧭 נווט למלון
-          </a>
-        </div>
+      <div style="direction: rtl; text-align: right; font-family: 'Heebo', sans-serif;">
+        <strong style="font-size: 1rem; color: #1e3a8a;">🏨 ${name}</strong>
+        ${address ? `<p style="font-size: 0.8rem; color: #64748b; margin: 4px 0 0 0;">${address}</p>` : ''}
       </div>
     `);
 
-    this.drawRouteToHotel();
+    this.drawRouteLine();
   }
 
-  drawRouteToHotel() {
+  // שרטוט קו מנוקד בין המשתמש למלון
+  drawRouteLine() {
     if (!this.map || !this.userMarker || !this.hotelMarker) return;
 
     const userLatLng = this.userMarker.getLatLng();
     const hotelLatLng = this.hotelMarker.getLatLng();
 
     if (this.routeLine) {
-      this.map.removeLayer(this.routeLine);
+      this.routeLine.setLatLngs([userLatLng, hotelLatLng]);
+    } else {
+      this.routeLine = L.polyline([userLatLng, hotelLatLng], {
+        color: '#f59e0b',
+        dashArray: '6, 8',
+        weight: 3,
+        opacity: 0.8
+      }).addTo(this.map);
     }
-
-    // קו מנוקד אלגנטי בין המשתמש למלון
-    this.routeLine = L.polyline([userLatLng, hotelLatLng], {
-      color: '#f59e0b',
-      weight: 3,
-      dashArray: '6, 8',
-      opacity: 0.85
-    }).addTo(this.map);
   }
 
+  // רינדור סיכות מקומות בסביבה
   renderNearbyMarkers(places) {
-    if (!this.map || !this.placeMarkersLayer || !window.L) return;
+    if (!this.map || !this.placesMarkersLayer) return;
 
-    this.placeMarkersLayer.clearLayers();
+    this.placesMarkersLayer.clearLayers();
 
-    places.forEach(place => {
+    places.slice(0, 30).forEach(place => {
       const meta = window.placesService.getCategoryMeta(place.category);
+      const markerHtml = `
+        <div style="background: ${meta.color}; color: white; border: 2px solid white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">
+          ${meta.icon}
+        </div>
+      `;
+
       const icon = L.divIcon({
-        className: 'custom-poi-marker',
-        html: `
-          <div class="poi-pin" style="background: ${meta.color}; border: 2px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.25);">
-            <span>${meta.icon}</span>
-          </div>
-        `,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16]
+        className: 'place-marker',
+        html: markerHtml,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
       });
 
-      const marker = L.marker([place.lat, place.lng], { icon })
-        .addTo(this.placeMarkersLayer)
-        .bindPopup(`
-          <div class="map-popup-card">
-            <div style="font-weight: 700; color: #1e293b; font-size: 14px;">${place.name}</div>
-            <div style="font-size: 12px; color: #64748b; margin: 4px 0;">${meta.icon} ${meta.label} • 📍 ${place.formattedDistance}</div>
-            ${place.desc ? `<p style="font-size: 12px; margin: 4px 0 8px; line-height: 1.4;">${place.desc}</p>` : ''}
-            <a href="https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}" target="_blank" rel="noopener" class="popup-navigate-btn">
-              🧭 נווט עכשיו
-            </a>
+      const marker = L.marker([place.lat, place.lng], { icon });
+      marker.bindPopup(`
+        <div style="direction: rtl; text-align: right; font-family: 'Heebo', sans-serif; min-width: 140px;">
+          <strong style="color: #0f172a; font-size: 0.95rem;">${place.name}</strong>
+          <div style="font-size: 0.78rem; color: #64748b; margin-top: 2px;">📍 ${place.formattedDistance}</div>
+          <div style="margin-top: 6px;">
+            <a href="https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}" target="_blank" style="display: inline-block; background: #2563eb; color: white; padding: 3px 8px; border-radius: 6px; text-decoration: none; font-size: 0.75rem; font-weight: 600;">נווט</a>
           </div>
-        `);
+        </div>
+      `);
+
+      this.placesMarkersLayer.addLayer(marker);
     });
-  }
-
-  fitAll() {
-    if (!this.map) return;
-    const group = [];
-    if (this.userMarker) group.push(this.userMarker.getLatLng());
-    if (this.hotelMarker) group.push(this.hotelMarker.getLatLng());
-
-    if (this.placeMarkersLayer) {
-      this.placeMarkersLayer.eachLayer(layer => {
-        if (layer.getLatLng) group.push(layer.getLatLng());
-      });
-    }
-
-    if (group.length > 0) {
-      this.map.fitBounds(L.latLngBounds(group), { padding: [50, 50], maxZoom: 16 });
-    }
   }
 
   flyToAndHighlight(lat, lng, name = '') {
     if (!this.map) return;
     this.map.flyTo([lat, lng], 17, { duration: 1.2 });
+    
+    // גלילה למפה במסכים קטנים
+    const mapSection = document.getElementById('mapSection');
+    if (mapSection) {
+      mapSection.scrollIntoView({ behavior: 'smooth' });
+    }
   }
 }
 

@@ -1,6 +1,6 @@
 // ==========================================================================
 // שירות מקומות בסביבה (Nearby Places Service)
-// מסעדות, בתי קפה, שירותים ציבוריים, שירותים חיוניים ומשיכת נתונים
+// מסעדות, בתי קפה, שירותים ציבוריים, שירותים חיוניים וסינון מרחק קשיח
 // ==========================================================================
 
 class PlacesService {
@@ -12,9 +12,9 @@ class PlacesService {
     this.isLoadingLive = false;
   }
 
-  // איסוף כל המקומות בסביבת המיקום הנוכחי (עם סינון מרחק קשיח של 15 ק"מ)
+  // איסוף כל המקומות בסביבת המיקום הנוכחי (עם סינון מרחק קשיח של 15 ק"מ מקסימום!)
   getNearbyPlaces(lat, lng) {
-    const MAX_DISTANCE_METERS = 15000; // מקסימום 15 ק"מ - מונע לחלוטין הצעת מקומות מתל אביב כשהמשתמש בזכרון יעקב
+    const MAX_DISTANCE_METERS = 15000; // מקסימום 15 ק"מ - מונע לחלוטין הצעות מערים רחוקות
     const activeSpot = window.attractionModalManager ? window.attractionModalManager.selectedSpot : null;
     let spot = activeSpot;
     if (!spot && window.attractionModalManager) {
@@ -39,7 +39,7 @@ class PlacesService {
       }
     }
 
-    // 3. הוסף מקומות שנמשכו באופן חי מ-OpenStreetMap / Overpass (אם קיימים ברדיוס)
+    // 3. הוסף מקומות שנמשכו באופן חי מ-OpenStreetMap / Overpass (אם קיימים)
     if (this.cachedLivePlaces && this.cachedLivePlaces.length > 0) {
       rawPlaces = rawPlaces.concat(this.cachedLivePlaces);
     }
@@ -81,7 +81,7 @@ class PlacesService {
     return strictlyLocalPlaces.sort((a, b) => a.distanceMeters - b.distanceMeters);
   }
 
-  // משיכת מקומות חיים מ-OpenStreetMap Overpass API לסביבת המיקום הנוכחי
+  // משיכת מקומות חיים מ-OpenStreetMap Overpass לסביבת המיקום
   async fetchLivePlaces(lat, lng) {
     const key = `${lat.toFixed(2)}_${lng.toFixed(2)}`;
     if (this.cachedCoordsKey === key && this.cachedLivePlaces.length > 0) {
@@ -124,9 +124,7 @@ out center 30;`;
               break;
             }
           }
-        } catch (_) {
-          // נסה את ה-mirror הבא
-        }
+        } catch (_) {}
       }
 
       if (elements && elements.length > 0) {
@@ -134,7 +132,7 @@ out center 30;`;
         elements.forEach(item => {
           const tags = item.tags || {};
           const name = tags['name:he'] || tags.name || tags['name:en'];
-          if (!name) return; // דלג על נקודות ללא שם
+          if (!name) return;
 
           const itemLat = item.lat || (item.center ? item.center.lat : null);
           const itemLng = item.lon || (item.center ? item.center.lon : null);
@@ -165,7 +163,7 @@ out center 30;`;
           }
 
           const dist = window.hotelDistanceCalculator.calculateHaversineDistance(lat, lng, itemLat, itemLng);
-          if (dist > 15000) return; // לא לכלול מקומות רחוקים מ-15 ק"מ
+          if (dist > 15000) return;
 
           livePlaces.push({
             id: `osm-${item.id}`,
@@ -236,7 +234,7 @@ out center 30;`;
       case 'restroom':
         return { label: 'שירותים ציבוריים', icon: '🚻', color: '#457b9d' };
       case 'essential':
-        return { label: 'שירות חיוני', icon: '🔍', color: '#9b5de5' };
+        return { label: 'מה עוד באזור', icon: '🏬', color: '#9b5de5' };
       case 'attraction':
         return { label: 'אטרקציה', icon: '🏛️', color: '#f77f00' };
       default:
@@ -273,7 +271,7 @@ out center 30;`;
         </div>
       `;
     } else if (place.category === 'essential') {
-      let subIcon = '🏬';
+      let subIcon = '🏬 שירות חיוני';
       if (place.subType === 'pharmacy') subIcon = '💊 בית מרקחת';
       if (place.subType === 'supermarket') subIcon = '🛒 סופרמרקט';
       if (place.subType === 'atm') subIcon = '🏧 כספומט / המרה';
