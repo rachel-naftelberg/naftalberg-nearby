@@ -23,9 +23,11 @@ class MapService {
       attributionControl: false
     }).setView([defaultLat, defaultLng], 15);
 
-    // CartoDB Dark Matter / Positron tiles for a sleek modern look
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19
+    // מפת OpenStreetMap סטנדרטית - פתוחה וחופשית ללא צורך ב-API Key!
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      subdomains: ['a', 'b', 'c'],
+      attribution: '&copy; OpenStreetMap'
     }).addTo(this.map);
 
     this.placesMarkersLayer = L.layerGroup().addTo(this.map);
